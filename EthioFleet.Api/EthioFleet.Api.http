@@ -1,0 +1,11 @@
+@EthioFleet.Api_HostAddress = http://localhost:5062
+
+GET {{EthioFleet.Api_HostAddress}}/health/live
+Accept: application/json
+
+###
+
+GET {{EthioFleet.Api_HostAddress}}/health/ready
+Accept: application/json
+
+###
