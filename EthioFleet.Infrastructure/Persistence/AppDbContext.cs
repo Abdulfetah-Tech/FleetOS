@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using EthioFleet.Application.Interfaces;
 using EthioFleet.Domain.Common;
+using EthioFleet.Domain.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
@@ -23,6 +24,8 @@ public class AppDbContext : DbContext
         _currentUser = currentUser;
         _tenantContext = tenantContext;
     }
+
+    public DbSet<Organization> Organizations { get; set; }
 
     public Guid? CurrentOrganizationId => _tenantContext.OrganizationId;
 
