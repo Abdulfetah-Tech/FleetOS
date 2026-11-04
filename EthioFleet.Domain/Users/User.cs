@@ -29,6 +29,7 @@ public sealed class User : BaseEntity, ITenantOwned, ISoftDeletable
         UserName = userName.Trim();
         NormalizedEmail = Email.ToUpperInvariant();
         NormalizedUserName = UserName.ToUpperInvariant();
+        PasswordHash = string.Empty;
         OrganizationId = organizationId;
         IsActive = true;
         EmailConfirmed = false;
@@ -38,12 +39,23 @@ public sealed class User : BaseEntity, ITenantOwned, ISoftDeletable
     public string NormalizedEmail { get; private set; }
     public string UserName { get; private set; }
     public string NormalizedUserName { get; private set; }
+    public string PasswordHash { get; private set; }
     public Guid OrganizationId { get; set; }
     public bool IsActive { get; private set; }
     public bool EmailConfirmed { get; private set; }
     public bool IsDeleted { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }
     public Guid? DeletedBy { get; set; }
+
+    public void SetPasswordHash(string passwordHash)
+    {
+        if (string.IsNullOrWhiteSpace(passwordHash))
+        {
+            throw new DomainException("Password hash is required.");
+        }
+
+        PasswordHash = passwordHash;
+    }
 
     public void Activate()
     {
