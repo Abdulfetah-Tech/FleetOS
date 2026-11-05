@@ -5,12 +5,13 @@ using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using System.Text.Json;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
+using EthioFleet.Domain.Vehicles;
 using EthioFleet.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
 
@@ -60,6 +61,118 @@ public sealed class AuthenticationTests : IAsyncLifetime
             await _factory.DisposeAsync();
         }
         await _postgres.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task VehicleApiSupportsCreateListGetUpdateStatusDeleteWithinTenant()
+    {
+        using var client = _factory!.CreateClient();
+        var organizationId = Guid.NewGuid();
+        await SeedOrganizationAsync(organizationId);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), organizationId, "CompanyOwner"));
+
+        var createdResponse = await client.PostAsJsonAsync("/api/v1/vehicles", new
+        {
+            plateNumber = "ab-555 xy",
+            make = "Toyota",
+            model = "Hilux",
+            year = 2022,
+            type = VehicleType.Pickup,
+            fuelType = FuelType.Diesel,
+            currentMileage = 12345.5m,
+            vin = "1HGCM82633A004352",
+            currencyCode = "ETB"
+        });
+        Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
+        using var createdJson = JsonDocument.Parse(await createdResponse.Content.ReadAsStringAsync());
+        var vehicleId = createdJson.RootElement.GetProperty("id").GetGuid();
+        Assert.Equal(organizationId, createdJson.RootElement.GetProperty("organizationId").GetGuid());
+        Assert.Equal("AB-555 XY", createdJson.RootElement.GetProperty("plateNumber").GetString());
+
+        var duplicateResponse = await client.PostAsJsonAsync("/api/v1/vehicles", new
+        {
+            plateNumber = "AB555XY",
+            make = "Toyota",
+            model = "Duplicate",
+            year = 2022,
+            type = VehicleType.Pickup,
+            fuelType = FuelType.Diesel,
+            currentMileage = 0m
+        });
+        Assert.Equal(HttpStatusCode.Conflict, duplicateResponse.StatusCode);
+
+        var listResponse = await client.GetAsync("/api/v1/vehicles?page=1&pageSize=10");
+        Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
+        using var listJson = JsonDocument.Parse(await listResponse.Content.ReadAsStringAsync());
+        Assert.Equal(1, listJson.RootElement.GetProperty("totalCount").GetInt32());
+        Assert.Equal(organizationId, listJson.RootElement.GetProperty("items")[0].GetProperty("organizationId").GetGuid());
+
+        var updateResponse = await client.PutAsJsonAsync($"/api/v1/vehicles/{vehicleId}", new
+        {
+            plateNumber = "ab-555 xy",
+            make = "Toyota",
+            model = "Hilux SR5",
+            year = 2022,
+            type = VehicleType.Pickup,
+            fuelType = FuelType.Diesel,
+            vin = "1HGCM82633A004352",
+            purchaseDate = (DateOnly?)null
+        });
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        var statusResponse = await client.PatchAsJsonAsync($"/api/v1/vehicles/{vehicleId}/status", new
+        {
+            status = VehicleStatus.Maintenance
+        });
+        Assert.Equal(HttpStatusCode.OK, statusResponse.StatusCode);
+        using var statusJson = JsonDocument.Parse(await statusResponse.Content.ReadAsStringAsync());
+        Assert.Equal((int)VehicleStatus.Maintenance, statusJson.RootElement.GetProperty("status").GetInt32());
+
+        var deleteResponse = await client.DeleteAsync($"/api/v1/vehicles/{vehicleId}");
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/v1/vehicles/{vehicleId}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task VehicleApiEnforcesTenantIsolationAndCompanyOwnerWritePolicy()
+    {
+        using var client = _factory!.CreateClient();
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        await SeedOrganizationAsync(tenantA);
+        await SeedOrganizationAsync(tenantB);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantA, "CompanyOwner"));
+
+        var createdResponse = await client.PostAsJsonAsync("/api/v1/vehicles", new
+        {
+            plateNumber = "TENANT-A-1",
+            make = "Toyota",
+            model = "Hilux",
+            year = 2020,
+            type = VehicleType.Pickup,
+            fuelType = FuelType.Diesel,
+            currentMileage = 0m
+        });
+        Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
+        using var createdJson = JsonDocument.Parse(await createdResponse.Content.ReadAsStringAsync());
+        var vehicleId = createdJson.RootElement.GetProperty("id").GetGuid();
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantB, "FleetManager"));
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/v1/vehicles/{vehicleId}")).StatusCode);
+        var forbiddenCreate = await client.PostAsJsonAsync("/api/v1/vehicles", new
+        {
+            plateNumber = "TENANT-B-1",
+            make = "Toyota",
+            model = "Hilux",
+            year = 2020,
+            type = VehicleType.Pickup,
+            fuelType = FuelType.Diesel,
+            currentMileage = 0m
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, forbiddenCreate.StatusCode);
     }
 
     [Fact]
@@ -124,6 +237,19 @@ public sealed class AuthenticationTests : IAsyncLifetime
             "Bearer", CreateTestToken(userId, organizationId, "FleetManager"));
         var fleetWorkspace = await client.GetAsync("/api/v1/organizations/current/fleet");
         Assert.Equal(HttpStatusCode.OK, fleetWorkspace.StatusCode);
+    }
+
+    private async Task SeedOrganizationAsync(Guid organizationId)
+    {
+        await using var scope = _factory!.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        dbContext.Organizations.Add(new EthioFleet.Domain.Organizations.Organization(
+            $"Tenant {organizationId:N}"[..20], $"ORG{organizationId:N}"[..20],
+            $"{organizationId:N}@example.test", string.Empty, string.Empty)
+        {
+            Id = organizationId
+        });
+        await dbContext.SaveChangesAsync();
     }
 
     private static string CreateTestToken(Guid userId, Guid? organizationId, string? role = null)

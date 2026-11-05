@@ -1,9 +1,10 @@
+using System.Text.Json;
 using EthioFleet.Domain.Common;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
+using Npgsql;
 
 namespace EthioFleet.Api.Middleware;
 
@@ -22,6 +23,8 @@ public sealed class GlobalExceptionHandler(
             DomainException => (StatusCodes.Status400BadRequest, "Domain rule violated", exception.Message),
             UnauthorizedAccessException => (StatusCodes.Status403Forbidden, "Forbidden", "The request is not authorized."),
             DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "Concurrency conflict", "The resource was changed by another request."),
+            DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } } =>
+                (StatusCodes.Status409Conflict, "Duplicate resource", "A record with the same unique identifier already exists."),
             _ => (StatusCodes.Status500InternalServerError, "An unexpected error occurred", "The server could not complete the request.")
         };
 

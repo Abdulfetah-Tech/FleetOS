@@ -12,6 +12,15 @@ TestResults/
 /EthioFleet.Tests/
 /ethiofleet-web/
 
+# Local assistant/editor configuration
+/.agent/
+/.agents/
+/.claude/
+/.codex/
+/.cursor/
+/.gemini/
+/.opencode/
+
 # Node / Angular output
 **/node_modules/
 **/dist/

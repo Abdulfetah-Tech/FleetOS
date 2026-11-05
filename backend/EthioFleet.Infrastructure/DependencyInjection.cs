@@ -1,4 +1,5 @@
 using EthioFleet.Application.Authentication;
+using EthioFleet.Application.Vehicles;
 using EthioFleet.Application.Interfaces;
 using EthioFleet.Infrastructure.Authentication;
 using EthioFleet.Infrastructure.Persistence;
@@ -47,6 +48,7 @@ public static class DependencyInjection
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<IVehicleService, VehicleService>();
         return services;
     }
 }
