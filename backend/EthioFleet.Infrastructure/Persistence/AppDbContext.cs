@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using EthioFleet.Application.Interfaces;
+using EthioFleet.Domain.Assignments;
 using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Organizations;
@@ -37,6 +38,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
     public DbSet<UserRole> DomainUserRoles { get; set; }
     public DbSet<Vehicle> Vehicles { get; set; }
     public DbSet<Driver> Drivers { get; set; }
+    public DbSet<VehicleAssignment> VehicleAssignments { get; set; }
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public Guid? CurrentOrganizationId => _tenantContext.OrganizationId;
@@ -59,13 +61,46 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<Vehicle>(entity =>
+        {
+            entity.HasAlternateKey(vehicle => new { vehicle.OrganizationId, vehicle.Id });
+            entity.HasIndex(vehicle => new { vehicle.OrganizationId, vehicle.NormalizedPlateNumber })
+                .IsUnique();
+            entity.HasIndex(vehicle => new { vehicle.OrganizationId, vehicle.NormalizedVin })
+                .IsUnique()
+                .HasFilter("normalized_vin IS NOT NULL");
+            entity.HasOne<Organization>()
+                .WithMany()
+                .HasForeignKey(vehicle => vehicle.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
         modelBuilder.Entity<Driver>(entity =>
         {
+            entity.HasAlternateKey(driver => new { driver.OrganizationId, driver.Id });
             entity.HasIndex(driver => new { driver.OrganizationId, driver.NormalizedEmail })
                 .IsUnique();
             entity.HasOne<Organization>()
                 .WithMany()
                 .HasForeignKey(driver => driver.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<VehicleAssignment>(entity =>
+        {
+            entity.HasIndex(assignment => new { assignment.OrganizationId, assignment.VehicleId })
+                .IsUnique()
+                .HasFilter("is_active = true");
+            entity.HasIndex(assignment => new { assignment.OrganizationId, assignment.DriverId })
+                .IsUnique()
+                .HasFilter("is_active = true");
+            entity.HasOne(assignment => assignment.Vehicle)
+                .WithMany()
+                .HasForeignKey(assignment => new { assignment.OrganizationId, assignment.VehicleId })
+                .HasPrincipalKey(vehicle => new { vehicle.OrganizationId, vehicle.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(assignment => assignment.Driver)
+                .WithMany()
+                .HasForeignKey(assignment => new { assignment.OrganizationId, assignment.DriverId })
+                .HasPrincipalKey(driver => new { driver.OrganizationId, driver.Id })
                 .OnDelete(DeleteBehavior.Restrict);
         });
         modelBuilder.Entity<DriverLicense>(entity =>
@@ -81,19 +116,6 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
                 .HasForeignKey(license => license.OrganizationId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
-
-        modelBuilder.Entity<Vehicle>()
-            .HasIndex(vehicle => new { vehicle.OrganizationId, vehicle.NormalizedPlateNumber })
-            .IsUnique();
-        modelBuilder.Entity<Vehicle>()
-            .HasIndex(vehicle => new { vehicle.OrganizationId, vehicle.NormalizedVin })
-            .IsUnique()
-            .HasFilter("normalized_vin IS NOT NULL");
-        modelBuilder.Entity<Vehicle>()
-            .HasOne<Organization>()
-            .WithMany()
-            .HasForeignKey(vehicle => vehicle.OrganizationId)
-            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<Organization>()
             .HasIndex(organization => organization.Code)

@@ -22,6 +22,80 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("EthioFleet.Domain.Assignments.VehicleAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AssignedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("assigned_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("DriverId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("driver_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<DateTimeOffset?>("UnassignedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("unassigned_at");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vehicle_id");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_vehicle_assignments");
+
+                    b.HasIndex("OrganizationId", "DriverId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_vehicle_assignments_organization_id_driver_id")
+                        .HasFilter("is_active = true");
+
+                    b.HasIndex("OrganizationId", "VehicleId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_vehicle_assignments_organization_id_vehicle_id")
+                        .HasFilter("is_active = true");
+
+                    b.ToTable("vehicle_assignments", (string)null);
+                });
+
             modelBuilder.Entity("EthioFleet.Domain.Drivers.Driver", b =>
                 {
                     b.Property<Guid>("Id")
@@ -103,6 +177,9 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_drivers");
+
+                    b.HasAlternateKey("OrganizationId", "Id")
+                        .HasName("ak_drivers_organization_id_id");
 
                     b.HasIndex("OrganizationId", "NormalizedEmail")
                         .IsUnique()
@@ -579,6 +656,9 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_vehicles");
 
+                    b.HasAlternateKey("OrganizationId", "Id")
+                        .HasName("ak_vehicles_organization_id_id");
+
                     b.HasIndex("OrganizationId", "NormalizedPlateNumber")
                         .IsUnique()
                         .HasDatabaseName("ix_vehicles_organization_id_normalized_plate_number");
@@ -928,6 +1008,29 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                         .HasName("pk_asp_net_user_tokens");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("EthioFleet.Domain.Assignments.VehicleAssignment", b =>
+                {
+                    b.HasOne("EthioFleet.Domain.Drivers.Driver", "Driver")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "DriverId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_vehicle_assignments_drivers_organization_id_driver_id");
+
+                    b.HasOne("EthioFleet.Domain.Vehicles.Vehicle", "Vehicle")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "VehicleId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_vehicle_assignments_vehicles_organization_id_vehicle_id");
+
+                    b.Navigation("Driver");
+
+                    b.Navigation("Vehicle");
                 });
 
             modelBuilder.Entity("EthioFleet.Domain.Drivers.Driver", b =>

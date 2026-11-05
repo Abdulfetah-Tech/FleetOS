@@ -12,6 +12,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using EthioFleet.Domain.Drivers;
+using EthioFleet.Domain.Common;
+using EthioFleet.Domain.Assignments;
 using EthioFleet.Domain.Vehicles;
 using EthioFleet.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
@@ -62,6 +64,105 @@ public sealed class AuthenticationTests : IAsyncLifetime
             await _factory.DisposeAsync();
         }
         await _postgres.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task VehicleAssignmentPersistsHistoryAndEnforcesSingleActiveAssignment()
+    {
+        using var client = _factory!.CreateClient();
+        var organizationId = Guid.NewGuid();
+        await SeedOrganizationAsync(organizationId);
+        var vehicle = CreateTestVehicle("ASSIGN-1");
+        var driver = CreateTestDriver("assign-one@example.test", "LICENSE-ASSIGN-1");
+        await using (var seedContext = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_postgres.GetConnectionString()).UseSnakeCaseNamingConvention().Options,
+            new TestClock(), new TestTenantContext(organizationId), new TestTenantContext(organizationId)))
+        {
+            seedContext.Vehicles.Add(vehicle);
+            seedContext.Drivers.Add(driver);
+            await seedContext.SaveChangesAsync();
+        }
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), organizationId, "CompanyOwner"));
+        var assignmentResponse = await client.PostAsJsonAsync($"/api/v1/vehicles/{vehicle.Id}/assignment", new
+        {
+            vehicleId = vehicle.Id,
+            driverId = driver.Id,
+            notes = "Day shift"
+        });
+        Assert.Equal(HttpStatusCode.Created, assignmentResponse.StatusCode);
+        using var assignmentJson = JsonDocument.Parse(await assignmentResponse.Content.ReadAsStringAsync());
+        var assignmentId = assignmentJson.RootElement.GetProperty("id").GetGuid();
+        Assert.True(assignmentJson.RootElement.GetProperty("isActive").GetBoolean());
+
+        var anotherVehicle = CreateTestVehicle("ASSIGN-2");
+        await using (var seedVehicleContext = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_postgres.GetConnectionString()).UseSnakeCaseNamingConvention().Options,
+            new TestClock(), new TestTenantContext(organizationId), new TestTenantContext(organizationId)))
+        {
+            seedVehicleContext.Vehicles.Add(anotherVehicle);
+            await seedVehicleContext.SaveChangesAsync();
+        }
+        var driverAlreadyAssigned = await client.PostAsJsonAsync($"/api/v1/vehicles/{anotherVehicle.Id}/assignment", new
+        {
+            vehicleId = anotherVehicle.Id,
+            driverId = driver.Id
+        });
+        Assert.Equal(HttpStatusCode.Conflict, driverAlreadyAssigned.StatusCode);
+
+        var unassigned = await client.DeleteAsync($"/api/v1/vehicles/{vehicle.Id}/assignment");
+        Assert.Equal(HttpStatusCode.OK, unassigned.StatusCode);
+        using var unassignedJson = JsonDocument.Parse(await unassigned.Content.ReadAsStringAsync());
+        Assert.False(unassignedJson.RootElement.GetProperty("isActive").GetBoolean());
+        Assert.True(unassignedJson.RootElement.GetProperty("unassignedAt").GetDateTimeOffset() >=
+            unassignedJson.RootElement.GetProperty("assignedAt").GetDateTimeOffset());
+
+        var activeForVehicle = await client.GetAsync($"/api/v1/vehicles/{vehicle.Id}/assignment");
+        Assert.Equal(HttpStatusCode.NotFound, activeForVehicle.StatusCode);
+        await using var verifyScope = _factory.Services.CreateAsyncScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var history = await verifyDb.VehicleAssignments.IgnoreQueryFilters()
+            .SingleAsync(item => item.Id == assignmentId);
+        Assert.False(history.IsActive);
+    }
+
+    [Fact]
+    public async Task AssignmentCannotReferenceResourcesFromAnotherOrganization()
+    {
+        using var client = _factory!.CreateClient();
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        await SeedOrganizationAsync(tenantA);
+        await SeedOrganizationAsync(tenantB);
+        var vehicleA = CreateTestVehicle("CROSS-A");
+        await using (var tenantAContext = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_postgres.GetConnectionString()).UseSnakeCaseNamingConvention().Options,
+            new TestClock(), new TestTenantContext(tenantA), new TestTenantContext(tenantA)))
+        {
+            tenantAContext.Vehicles.Add(vehicleA);
+            await tenantAContext.SaveChangesAsync();
+        }
+
+        var driverB = CreateTestDriver("cross-b@example.test", "CROSS-B-LICENSE");
+        await using (var tenantBContext = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_postgres.GetConnectionString()).UseSnakeCaseNamingConvention().Options,
+            new TestClock(), new TestTenantContext(tenantB), new TestTenantContext(tenantB)))
+        {
+            tenantBContext.Drivers.Add(driverB);
+            await tenantBContext.SaveChangesAsync();
+        }
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantA, "CompanyOwner"));
+        var response = await client.PostAsJsonAsync($"/api/v1/vehicles/{vehicleA.Id}/assignment", new
+        {
+            vehicleId = vehicleA.Id,
+            driverId = driverB.Id
+        });
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        await Assert.ThrowsAsync<DomainException>(() => Task.Run(() => new VehicleAssignment(
+            tenantA, vehicleA, driverB, DateTimeOffset.UtcNow)));
     }
 
     [Fact]
@@ -314,6 +415,29 @@ public sealed class AuthenticationTests : IAsyncLifetime
             "Bearer", CreateTestToken(userId, organizationId, "FleetManager"));
         var fleetWorkspace = await client.GetAsync("/api/v1/organizations/current/fleet");
         Assert.Equal(HttpStatusCode.OK, fleetWorkspace.StatusCode);
+    }
+
+    private sealed class TestClock : EthioFleet.Application.Interfaces.IClock
+    {
+        public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
+    }
+
+    private sealed class TestTenantContext(Guid organizationId) : EthioFleet.Application.Interfaces.ITenantContext, EthioFleet.Application.Interfaces.ICurrentUser
+    {
+        public Guid? OrganizationId { get; } = organizationId;
+        public Guid? UserId => null;
+        public string? Email => null;
+        public bool IsSystemAdmin => false;
+    }
+
+    private static Vehicle CreateTestVehicle(string plate) => new(
+        plate, "Toyota", "Hilux", 2022, VehicleType.Pickup, FuelType.Diesel, 100m);
+
+    private static Driver CreateTestDriver(string email, string licenseNumber)
+    {
+        var driverId = Guid.NewGuid();
+        var license = new DriverLicense(driverId, licenseNumber, "B", DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)));
+        return new Driver(driverId, "Assignment Driver", email, "+251911000000", license);
     }
 
     private async Task SeedOrganizationAsync(Guid organizationId)
