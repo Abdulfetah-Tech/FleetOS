@@ -87,7 +87,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             RoleClaimType = System.Security.Claims.ClaimTypes.Role
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("TenantMember", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("organization_id"));
+    options.AddPolicy("CompanyOwner", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("organization_id")
+        .RequireRole("CompanyOwner"));
+    options.AddPolicy("FleetManager", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("organization_id")
+        .RequireRole("CompanyOwner", "FleetManager"));
+    options.AddPolicy("MaintenanceManager", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("organization_id")
+        .RequireRole("CompanyOwner", "MaintenanceManager"));
+    options.AddPolicy("FinanceManager", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("organization_id")
+        .RequireRole("CompanyOwner", "FinanceManager"));
+});
 
 builder.Services.AddCors(options =>
     options.AddPolicy("ConfiguredOrigins", policy =>

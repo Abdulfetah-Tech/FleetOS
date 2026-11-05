@@ -1,12 +1,16 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using EthioFleet.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
 
@@ -94,6 +98,56 @@ public sealed class AuthenticationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
         var revokedSession = await client.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = secondRefresh });
         Assert.Equal(HttpStatusCode.Unauthorized, revokedSession.StatusCode);
+    }
+
+    [Fact]
+    public async Task OrganizationEndpointRequiresTenantClaimAndFleetRole()
+    {
+        using var client = _factory!.CreateClient();
+        var organizationId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateTestToken(userId, null));
+        var missingTenant = await client.GetAsync("/api/v1/organizations/current");
+        Assert.Equal(HttpStatusCode.Forbidden, missingTenant.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateTestToken(userId, organizationId));
+        var currentOrganization = await client.GetAsync("/api/v1/organizations/current");
+        Assert.Equal(HttpStatusCode.OK, currentOrganization.StatusCode);
+        using var currentJson = JsonDocument.Parse(await currentOrganization.Content.ReadAsStringAsync());
+        Assert.Equal(organizationId, currentJson.RootElement.GetProperty("organizationId").GetGuid());
+
+        var deniedFleet = await client.GetAsync("/api/v1/organizations/current/fleet");
+        Assert.Equal(HttpStatusCode.Forbidden, deniedFleet.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(userId, organizationId, "FleetManager"));
+        var fleetWorkspace = await client.GetAsync("/api/v1/organizations/current/fleet");
+        Assert.Equal(HttpStatusCode.OK, fleetWorkspace.StatusCode);
+    }
+
+    private static string CreateTestToken(Guid userId, Guid? organizationId, string? role = null)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SigningKey));
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
+            new(ClaimTypes.Email, "policy-test@example.test")
+        };
+        if (organizationId is Guid tenantId)
+        {
+            claims.Add(new Claim("organization_id", tenantId.ToString()));
+        }
+        if (role is not null)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
+
+        var token = new JwtSecurityToken("EthioFleet.Tests", "EthioFleet.Tests.Api", claims,
+            expires: DateTime.UtcNow.AddMinutes(5),
+            signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     [Fact]
