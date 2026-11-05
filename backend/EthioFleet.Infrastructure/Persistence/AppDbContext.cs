@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using EthioFleet.Application.Interfaces;
 using EthioFleet.Domain.Common;
+using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Organizations;
 using EthioFleet.Domain.Users;
 using EthioFleet.Domain.Vehicles;
@@ -35,6 +36,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
     public DbSet<Role> DomainRoles { get; set; }
     public DbSet<UserRole> DomainUserRoles { get; set; }
     public DbSet<Vehicle> Vehicles { get; set; }
+    public DbSet<Driver> Drivers { get; set; }
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public Guid? CurrentOrganizationId => _tenantContext.OrganizationId;
@@ -55,6 +57,29 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
                 .WithMany()
                 .HasForeignKey(token => token.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Driver>(entity =>
+        {
+            entity.HasIndex(driver => new { driver.OrganizationId, driver.NormalizedEmail })
+                .IsUnique();
+            entity.HasOne<Organization>()
+                .WithMany()
+                .HasForeignKey(driver => driver.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<DriverLicense>(entity =>
+        {
+            entity.HasIndex(license => new { license.OrganizationId, license.NormalizedNumber })
+                .IsUnique();
+            entity.HasOne<Driver>()
+                .WithOne(driver => driver.License)
+                .HasForeignKey<DriverLicense>(license => license.DriverId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Organization>()
+                .WithMany()
+                .HasForeignKey(license => license.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Vehicle>()

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Vehicles;
 using EthioFleet.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
@@ -61,6 +62,82 @@ public sealed class AuthenticationTests : IAsyncLifetime
             await _factory.DisposeAsync();
         }
         await _postgres.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task DriverApiSupportsTenantScopedCrudAndLicenseExpiry()
+    {
+        using var client = _factory!.CreateClient();
+        var organizationId = Guid.NewGuid();
+        await SeedOrganizationAsync(organizationId);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), organizationId, "CompanyOwner"));
+
+        var response = await client.PostAsJsonAsync("/api/v1/drivers", new
+        {
+            fullName = "Hana Bekele",
+            email = "hana@example.test",
+            phoneNumber = "+251911123456",
+            licenseNumber = "ab-1234",
+            licenseCategory = "B",
+            licenseExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
+            emergencyContactName = "Abel Bekele",
+            emergencyContactPhone = "+251922123456"
+        });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var driverId = json.RootElement.GetProperty("id").GetGuid();
+        Assert.Equal(organizationId, json.RootElement.GetProperty("organizationId").GetGuid());
+        Assert.Equal("AB-1234", json.RootElement.GetProperty("licenseNumber").GetString());
+
+        var list = await client.GetAsync("/api/v1/drivers?search=hana");
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        using var listJson = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
+        Assert.Equal(1, listJson.RootElement.GetProperty("totalCount").GetInt32());
+
+        var inactive = await client.PatchAsJsonAsync($"/api/v1/drivers/{driverId}/status", new
+        {
+            status = DriverStatus.Inactive
+        });
+        Assert.Equal(HttpStatusCode.OK, inactive.StatusCode);
+        var deleted = await client.DeleteAsync($"/api/v1/drivers/{driverId}");
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/v1/drivers/{driverId}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task DriverApiRejectsDuplicateTenantLicenseAndIsolatesRecords()
+    {
+        using var client = _factory!.CreateClient();
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        await SeedOrganizationAsync(tenantA);
+        await SeedOrganizationAsync(tenantB);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantA, "CompanyOwner"));
+
+        var create = new
+        {
+            fullName = "Driver One",
+            email = "driver.one@example.test",
+            phoneNumber = "+251911000001",
+            licenseNumber = "LIC-12345",
+            licenseCategory = "B",
+            licenseExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1))
+        };
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/v1/drivers", create)).StatusCode);
+        var duplicateLicense = await client.PostAsJsonAsync("/api/v1/drivers", create with
+        {
+            fullName = "Driver Two",
+            email = "driver.two@example.test",
+            phoneNumber = "+251911000002"
+        });
+        Assert.Equal(HttpStatusCode.Conflict, duplicateLicense.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantB, "FleetManager"));
+        Assert.Equal(0, JsonDocument.Parse(await (await client.GetAsync("/api/v1/drivers")).Content.ReadAsStringAsync())
+            .RootElement.GetProperty("totalCount").GetInt32());
     }
 
     [Fact]
