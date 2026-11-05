@@ -55,6 +55,28 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<Organization>()
+            .HasIndex(organization => organization.Code)
+            .IsUnique();
+        modelBuilder.Entity<User>()
+            .HasIndex(user => new { user.OrganizationId, user.NormalizedEmail })
+            .IsUnique();
+        modelBuilder.Entity<User>()
+            .HasIndex(user => new { user.OrganizationId, user.NormalizedUserName })
+            .IsUnique();
+        modelBuilder.Entity<Role>()
+            .HasIndex(role => role.NormalizedName)
+            .IsUnique();
+        modelBuilder.Entity<UserRole>()
+            .HasIndex(userRole => new { userRole.OrganizationId, userRole.UserId, userRole.RoleId })
+            .IsUnique();
+
+        modelBuilder.Entity<AppIdentityUser>()
+            .HasIndex(user => user.NormalizedUserName)
+            .IsUnique(false);
+        modelBuilder.Entity<AppIdentityUser>()
+            .HasIndex(user => new { user.OrganizationId, user.NormalizedUserName })
+            .IsUnique();
         modelBuilder.Entity<AppIdentityUser>()
             .HasIndex(user => user.NormalizedEmail)
             .IsUnique()

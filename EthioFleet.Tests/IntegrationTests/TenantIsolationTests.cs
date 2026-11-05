@@ -1,5 +1,7 @@
 using EthioFleet.Application.Interfaces;
+using EthioFleet.Domain.Organizations;
 using EthioFleet.Domain.Users;
+using EthioFleet.Infrastructure.Authentication;
 using EthioFleet.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
@@ -23,6 +25,98 @@ public sealed class TenantIsolationTests : IAsyncLifetime
     }
 
     public async Task DisposeAsync() => await _postgres.DisposeAsync();
+
+    [Fact]
+    public async Task IdentityUsernamesAreTenantScopedButEmailRemainsGloballyUnique()
+    {
+        var organizationA = new Organization("Organization A", $"A{Guid.NewGuid():N}"[..20], "a@example.test", string.Empty, string.Empty);
+        var organizationB = new Organization("Organization B", $"B{Guid.NewGuid():N}"[..20], "b@example.test", string.Empty, string.Empty);
+        await using (var context = CreateContext(null))
+        {
+            context.Organizations.AddRange(organizationA, organizationB);
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext(organizationA.Id))
+        {
+            context.Users.Add(CreateIdentityUser(organizationA.Id, "shared-name", "tenant-a@example.test"));
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext(organizationB.Id))
+        {
+            context.Users.Add(CreateIdentityUser(organizationB.Id, "shared-name", "tenant-b@example.test"));
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext(organizationA.Id))
+        {
+            context.Users.Add(CreateIdentityUser(organizationA.Id, "shared-name", "another@example.test"));
+            await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+        }
+
+        await using var emailDuplicateContext = CreateContext(organizationB.Id);
+        emailDuplicateContext.Users.Add(CreateIdentityUser(organizationB.Id, "different-name", "tenant-a@example.test"));
+        await Assert.ThrowsAsync<DbUpdateException>(() => emailDuplicateContext.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task DomainUserNamesAreUniqueWithinAnOrganizationButMayRepeatAcrossOrganizations()
+    {
+        var organizationA = Guid.NewGuid();
+        var organizationB = Guid.NewGuid();
+        await using (var tenantA = CreateContext(organizationA))
+        {
+            tenantA.DomainUsers.Add(new User("same@example.test", "same-user", organizationA));
+            await tenantA.SaveChangesAsync();
+        }
+
+        await using (var tenantB = CreateContext(organizationB))
+        {
+            tenantB.DomainUsers.Add(new User("same@example.test", "same-user", organizationB));
+            await tenantB.SaveChangesAsync();
+        }
+
+        await using var duplicateTenant = CreateContext(organizationA);
+        duplicateTenant.DomainUsers.Add(new User("other@example.test", "same-user", organizationA));
+        await Assert.ThrowsAsync<DbUpdateException>(() => duplicateTenant.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task OrganizationCodesAreUniqueAfterDomainNormalization()
+    {
+        var organizationA = new EthioFleet.Domain.Organizations.Organization(
+            "First", "fleet-code", "first@example.test", string.Empty, string.Empty);
+        var organizationB = new EthioFleet.Domain.Organizations.Organization(
+            "Second", "FLEET-CODE", "second@example.test", string.Empty, string.Empty);
+
+        await using (var context = CreateContext(Guid.NewGuid()))
+        {
+            context.Organizations.Add(organizationA);
+            await context.SaveChangesAsync();
+        }
+
+        await using var duplicateContext = CreateContext(Guid.NewGuid());
+        duplicateContext.Organizations.Add(organizationB);
+        await Assert.ThrowsAsync<DbUpdateException>(() => duplicateContext.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task RoleMembershipIsUniquePerOrganizationUserAndRole()
+    {
+        var organizationId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var roleId = Guid.NewGuid();
+        await using (var context = CreateContext(organizationId))
+        {
+            context.DomainUserRoles.Add(new UserRole(userId, roleId, organizationId));
+            await context.SaveChangesAsync();
+        }
+
+        await using var duplicateContext = CreateContext(organizationId);
+        duplicateContext.DomainUserRoles.Add(new UserRole(userId, roleId, organizationId));
+        await Assert.ThrowsAsync<DbUpdateException>(() => duplicateContext.SaveChangesAsync());
+    }
 
     [Fact]
     public async Task TenantQueryFilterOnlyReturnsRecordsForCurrentOrganization()
@@ -108,6 +202,19 @@ public sealed class TenantIsolationTests : IAsyncLifetime
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => tenantBContext.SaveChangesAsync());
     }
+
+    private static AppIdentityUser CreateIdentityUser(Guid organizationId, string userName, string email) => new()
+    {
+        Id = Guid.NewGuid(),
+        OrganizationId = organizationId,
+        UserName = userName,
+        NormalizedUserName = userName.ToUpperInvariant(),
+        Email = email,
+        NormalizedEmail = email.ToUpperInvariant(),
+        CreatedAt = DateTimeOffset.UtcNow,
+        UpdatedAt = DateTimeOffset.UtcNow,
+        EmailConfirmed = false
+    };
 
     private AppDbContext CreateContext(Guid? organizationId)
     {

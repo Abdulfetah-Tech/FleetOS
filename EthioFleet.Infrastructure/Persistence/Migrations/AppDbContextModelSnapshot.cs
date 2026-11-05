@@ -95,6 +95,10 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_organizations");
 
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_organizations_code");
+
                     b.ToTable("organizations", (string)null);
                 });
 
@@ -148,6 +152,10 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_domain_roles");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("ix_domain_roles_normalized_name");
 
                     b.ToTable("domain_roles", (string)null);
                 });
@@ -233,6 +241,14 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_domain_users");
 
+                    b.HasIndex("OrganizationId", "NormalizedEmail")
+                        .IsUnique()
+                        .HasDatabaseName("ix_domain_users_organization_id_normalized_email");
+
+                    b.HasIndex("OrganizationId", "NormalizedUserName")
+                        .IsUnique()
+                        .HasDatabaseName("ix_domain_users_organization_id_normalized_user_name");
+
                     b.ToTable("domain_users", (string)null);
                 });
 
@@ -291,6 +307,10 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_domain_user_roles");
+
+                    b.HasIndex("OrganizationId", "UserId", "RoleId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_domain_user_roles_organization_id_user_id_role_id");
 
                     b.ToTable("domain_user_roles", (string)null);
                 });
@@ -390,11 +410,11 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                         .HasFilter("normalized_email IS NOT NULL");
 
                     b.HasIndex("NormalizedUserName")
-                        .IsUnique()
                         .HasDatabaseName("UserNameIndex");
 
-                    b.HasIndex("OrganizationId")
-                        .HasDatabaseName("ix_asp_net_users_organization_id");
+                    b.HasIndex("OrganizationId", "NormalizedUserName")
+                        .IsUnique()
+                        .HasDatabaseName("ix_asp_net_users_organization_id_normalized_user_name");
 
                     b.ToTable("AspNetUsers", (string)null);
                 });
