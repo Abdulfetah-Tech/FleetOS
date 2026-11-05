@@ -28,7 +28,12 @@ public sealed class ApiFoundationTests : IAsyncLifetime
                 configuration.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["ConnectionStrings:DefaultConnection"] = _postgres.GetConnectionString(),
-                    ["Cors:AllowedOrigins:0"] = "http://localhost:4200"
+                    ["Cors:AllowedOrigins:0"] = "http://localhost:4200",
+                    ["Authentication:Jwt:Issuer"] = "EthioFleet.Tests",
+                    ["Authentication:Jwt:Audience"] = "EthioFleet.Tests.Api",
+                    ["Authentication:Jwt:SigningKey"] = "test-only-signing-key-for-ethiofleet-0000000000001",
+                    ["Authentication:Jwt:AccessTokenMinutes"] = "15",
+                    ["Authentication:Jwt:RefreshTokenDays"] = "14"
                 });
             });
         });
@@ -48,7 +53,6 @@ public sealed class ApiFoundationTests : IAsyncLifetime
     public async Task HealthEndpointsReportLiveAndPostgresReady()
     {
         using var client = _factory!.CreateClient();
-
         using var liveResponse = await client.GetAsync("/health/live");
         using var readyResponse = await client.GetAsync("/health/ready");
         var readyBody = await readyResponse.Content.ReadAsStringAsync();
@@ -60,5 +64,4 @@ public sealed class ApiFoundationTests : IAsyncLifetime
         Assert.Contains("postgresql", readyJson.RootElement.GetProperty("checks").EnumerateObject()
             .Select(property => property.Name));
     }
-
 }

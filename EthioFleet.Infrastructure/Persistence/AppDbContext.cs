@@ -3,12 +3,15 @@ using EthioFleet.Application.Interfaces;
 using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Organizations;
 using EthioFleet.Domain.Users;
+using EthioFleet.Infrastructure.Authentication;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace EthioFleet.Infrastructure.Persistence;
 
-public class AppDbContext : DbContext
+public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid>, Guid>
 {
     private readonly IClock _clock;
     private readonly ICurrentUser _currentUser;
@@ -27,15 +30,40 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<Organization> Organizations { get; set; }
-    public DbSet<User> Users { get; set; }
-    public DbSet<Role> Roles { get; set; }
-    public DbSet<UserRole> UserRoles { get; set; }
+    public DbSet<User> DomainUsers { get; set; }
+    public DbSet<Role> DomainRoles { get; set; }
+    public DbSet<UserRole> DomainUserRoles { get; set; }
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public Guid? CurrentOrganizationId => _tenantContext.OrganizationId;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(token => token.Id);
+            entity.HasIndex(token => token.TokenHash).IsUnique();
+            entity.HasIndex(token => new { token.FamilyId, token.RevokedAt, token.ExpiresAt });
+            entity.Property(token => token.TokenHash).HasMaxLength(64).IsRequired();
+            entity.Property(token => token.CreatedByIp).HasMaxLength(64);
+            entity.Property(token => token.RevokedByIp).HasMaxLength(64);
+            entity.HasOne(token => token.User)
+                .WithMany()
+                .HasForeignKey(token => token.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AppIdentityUser>()
+            .HasIndex(user => user.NormalizedEmail)
+            .IsUnique()
+            .HasFilter("normalized_email IS NOT NULL");
+        modelBuilder.Entity<AppIdentityUser>()
+            .HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(user => user.OrganizationId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         foreach (var entityType in modelBuilder.Model.GetEntityTypes().Where(type => !type.IsOwned()).ToArray())
         {
@@ -75,11 +103,22 @@ public class AppDbContext : DbContext
 
     private static void ConfigureConcurrencyToken(ModelBuilder modelBuilder, IMutableEntityType entityType)
     {
-        modelBuilder.Entity(entityType.ClrType).Property<uint>("xmin").IsRowVersion();
+        if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType)
+            || entityType.ClrType == typeof(AppIdentityUser)
+            || entityType.ClrType == typeof(RefreshToken))
+        {
+            modelBuilder.Entity(entityType.ClrType).Property<uint>("xmin").IsRowVersion();
+        }
     }
 
     private void ConfigureQueryFilter(ModelBuilder modelBuilder, IMutableEntityType entityType)
     {
+        if (!typeof(ITenantOwned).IsAssignableFrom(entityType.ClrType)
+            && !typeof(ISoftDeletable).IsAssignableFrom(entityType.ClrType))
+        {
+            return;
+        }
+
         var parameter = Expression.Parameter(entityType.ClrType, "entity");
         Expression? filter = null;
 
@@ -108,5 +147,4 @@ public class AppDbContext : DbContext
             modelBuilder.Entity(entityType.ClrType).HasQueryFilter(Expression.Lambda(filter, parameter));
         }
     }
-
 }

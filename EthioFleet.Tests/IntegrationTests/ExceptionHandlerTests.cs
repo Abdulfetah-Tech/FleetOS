@@ -19,7 +19,12 @@ public sealed class ExceptionHandlerTests
                 {
                     ["ConnectionStrings:DefaultConnection"] =
                         "Host=localhost;Database=not_used;Username=not_used;Password=not_used",
-                    ["Cors:AllowedOrigins:0"] = "http://localhost:4200"
+                    ["Cors:AllowedOrigins:0"] = "http://localhost:4200",
+                    ["Authentication:Jwt:Issuer"] = "EthioFleet.Tests",
+                    ["Authentication:Jwt:Audience"] = "EthioFleet.Tests.Api",
+                    ["Authentication:Jwt:SigningKey"] = "test-only-signing-key-for-ethiofleet-0000000000001",
+                    ["Authentication:Jwt:AccessTokenMinutes"] = "15",
+                    ["Authentication:Jwt:RefreshTokenDays"] = "14"
                 });
             });
         });
