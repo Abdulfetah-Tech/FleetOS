@@ -127,11 +127,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
             var tenantEntity = Expression.Convert(parameter, typeof(ITenantOwned));
             var entityOrganizationId = Expression.Property(tenantEntity, nameof(ITenantOwned.OrganizationId));
             var currentOrganizationId = Expression.Property(Expression.Constant(this), nameof(CurrentOrganizationId));
-            var hasOrganization = Expression.Property(currentOrganizationId, nameof(Nullable<Guid>.HasValue));
-            var organizationValue = Expression.Property(currentOrganizationId, nameof(Nullable<Guid>.Value));
-            filter = Expression.AndAlso(
-                hasOrganization,
-                Expression.Equal(entityOrganizationId, organizationValue));
+            filter = Expression.Equal(Expression.Convert(entityOrganizationId, typeof(Guid?)), currentOrganizationId);
         }
 
         if (typeof(ISoftDeletable).IsAssignableFrom(entityType.ClrType))
