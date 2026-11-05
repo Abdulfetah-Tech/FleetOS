@@ -5,6 +5,7 @@ using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Organizations;
 using EthioFleet.Domain.Users;
+using EthioFleet.Domain.Trips;
 using EthioFleet.Domain.Vehicles;
 using EthioFleet.Infrastructure.Authentication;
 using Microsoft.AspNetCore.Identity;
@@ -39,6 +40,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
     public DbSet<Vehicle> Vehicles { get; set; }
     public DbSet<Driver> Drivers { get; set; }
     public DbSet<VehicleAssignment> VehicleAssignments { get; set; }
+    public DbSet<Trip> Trips { get; set; }
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public Guid? CurrentOrganizationId => _tenantContext.OrganizationId;
@@ -86,6 +88,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
         });
         modelBuilder.Entity<VehicleAssignment>(entity =>
         {
+            entity.HasAlternateKey(assignment => new { assignment.OrganizationId, assignment.Id });
             entity.HasIndex(assignment => new { assignment.OrganizationId, assignment.VehicleId })
                 .IsUnique()
                 .HasFilter("is_active = true");
@@ -103,6 +106,33 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
                 .HasPrincipalKey(driver => new { driver.OrganizationId, driver.Id })
                 .OnDelete(DeleteBehavior.Restrict);
         });
+        modelBuilder.Entity<Trip>(entity =>
+        {
+            entity.HasIndex(trip => new { trip.OrganizationId, trip.Status, trip.PlannedStart });
+            entity.HasIndex(trip => new { trip.OrganizationId, trip.VehicleId, trip.PlannedStart });
+            entity.Property(trip => trip.StartMileage).HasPrecision(12, 1);
+            entity.Property(trip => trip.EndMileage).HasPrecision(12, 1);
+            entity.Property(trip => trip.Origin).HasMaxLength(200).IsRequired();
+            entity.Property(trip => trip.Destination).HasMaxLength(200).IsRequired();
+            entity.Property(trip => trip.Purpose).HasMaxLength(500).IsRequired();
+            entity.Property(trip => trip.Notes).HasMaxLength(2000).IsRequired();
+            entity.HasOne(trip => trip.Vehicle)
+                .WithMany()
+                .HasForeignKey(trip => new { trip.OrganizationId, trip.VehicleId })
+                .HasPrincipalKey(vehicle => new { vehicle.OrganizationId, vehicle.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(trip => trip.Driver)
+                .WithMany()
+                .HasForeignKey(trip => new { trip.OrganizationId, trip.DriverId })
+                .HasPrincipalKey(driver => new { driver.OrganizationId, driver.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(trip => trip.VehicleAssignment)
+                .WithMany()
+                .HasForeignKey(trip => new { trip.OrganizationId, trip.VehicleAssignmentId })
+                .HasPrincipalKey(assignment => new { assignment.OrganizationId, assignment.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<DriverLicense>(entity =>
         {
             entity.HasIndex(license => new { license.OrganizationId, license.NormalizedNumber })

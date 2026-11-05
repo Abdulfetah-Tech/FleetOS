@@ -83,6 +83,9 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_vehicle_assignments");
 
+                    b.HasAlternateKey("OrganizationId", "Id")
+                        .HasName("ak_vehicle_assignments_organization_id_id");
+
                     b.HasIndex("OrganizationId", "DriverId")
                         .IsUnique()
                         .HasDatabaseName("ix_vehicle_assignments_organization_id_driver_id")
@@ -336,6 +339,131 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_organizations_code");
 
                     b.ToTable("organizations", (string)null);
+                });
+
+            modelBuilder.Entity("EthioFleet.Domain.Trips.Trip", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ActualEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("actual_end");
+
+                    b.Property<DateTimeOffset?>("ActualStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("actual_start");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<string>("Destination")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("destination");
+
+                    b.Property<Guid>("DriverId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("driver_id");
+
+                    b.Property<decimal?>("EndMileage")
+                        .HasPrecision(12, 1)
+                        .HasColumnType("numeric(12,1)")
+                        .HasColumnName("end_mileage");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("origin");
+
+                    b.Property<DateTimeOffset>("PlannedStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("planned_start");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("purpose");
+
+                    b.Property<decimal>("StartMileage")
+                        .HasPrecision(12, 1)
+                        .HasColumnType("numeric(12,1)")
+                        .HasColumnName("start_mileage");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("VehicleAssignmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vehicle_assignment_id");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vehicle_id");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_trips");
+
+                    b.HasIndex("OrganizationId", "DriverId")
+                        .HasDatabaseName("ix_trips_organization_id_driver_id");
+
+                    b.HasIndex("OrganizationId", "VehicleAssignmentId")
+                        .HasDatabaseName("ix_trips_organization_id_vehicle_assignment_id");
+
+                    b.HasIndex("OrganizationId", "Status", "PlannedStart")
+                        .HasDatabaseName("ix_trips_organization_id_status_planned_start");
+
+                    b.HasIndex("OrganizationId", "VehicleId", "PlannedStart")
+                        .HasDatabaseName("ix_trips_organization_id_vehicle_id_planned_start");
+
+                    b.ToTable("trips", (string)null);
                 });
 
             modelBuilder.Entity("EthioFleet.Domain.Users.Role", b =>
@@ -1058,6 +1186,39 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_driver_license_organizations_organization_id");
+                });
+
+            modelBuilder.Entity("EthioFleet.Domain.Trips.Trip", b =>
+                {
+                    b.HasOne("EthioFleet.Domain.Drivers.Driver", "Driver")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "DriverId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_trips_drivers_organization_id_driver_id");
+
+                    b.HasOne("EthioFleet.Domain.Assignments.VehicleAssignment", "VehicleAssignment")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "VehicleAssignmentId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_trips_vehicle_assignments_organization_id_vehicle_assignmen");
+
+                    b.HasOne("EthioFleet.Domain.Vehicles.Vehicle", "Vehicle")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "VehicleId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_trips_vehicles_organization_id_vehicle_id");
+
+                    b.Navigation("Driver");
+
+                    b.Navigation("Vehicle");
+
+                    b.Navigation("VehicleAssignment");
                 });
 
             modelBuilder.Entity("EthioFleet.Domain.Vehicles.Vehicle", b =>

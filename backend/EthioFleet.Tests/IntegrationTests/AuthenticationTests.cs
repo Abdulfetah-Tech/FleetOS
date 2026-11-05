@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Assignments;
+using EthioFleet.Domain.Trips;
 using EthioFleet.Domain.Vehicles;
 using EthioFleet.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
@@ -64,6 +65,103 @@ public sealed class AuthenticationTests : IAsyncLifetime
             await _factory.DisposeAsync();
         }
         await _postgres.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task TripFlowStartsCompletesAndUpdatesVehicleOdometer()
+    {
+        using var client = _factory!.CreateClient();
+        var organizationId = Guid.NewGuid();
+        await SeedOrganizationAsync(organizationId);
+        var (vehicle, driver) = await SeedTripResourcesAsync(organizationId);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), organizationId, "CompanyOwner"));
+
+        var create = await client.PostAsJsonAsync("/api/v1/trips", new
+        {
+            vehicleId = vehicle.Id,
+            driverId = driver.Id,
+            origin = "Addis Ababa",
+            destination = "Adama",
+            purpose = "Delivery",
+            plannedStart = DateTimeOffset.UtcNow.AddMinutes(-1),
+            startMileage = 100m,
+            notes = "Morning route"
+        });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        using var createJson = JsonDocument.Parse(await create.Content.ReadAsStringAsync());
+        var tripId = createJson.RootElement.GetProperty("id").GetGuid();
+
+        var started = await client.PostAsync($"/api/v1/trips/{tripId}/start", null);
+        Assert.Equal(HttpStatusCode.OK, started.StatusCode);
+        var completed = await client.PostAsJsonAsync($"/api/v1/trips/{tripId}/complete", new
+        {
+            actualEnd = DateTimeOffset.UtcNow.AddMinutes(10),
+            endMileage = 135.5m
+        });
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        using var completedJson = JsonDocument.Parse(await completed.Content.ReadAsStringAsync());
+        Assert.Equal((int)TripStatus.Completed, completedJson.RootElement.GetProperty("status").GetInt32());
+        Assert.Equal(35.5m, completedJson.RootElement.GetProperty("distanceKm").GetDecimal());
+
+        var verifyTenant = new TestTenantContext(organizationId);
+        await using var verifyContext = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_postgres.GetConnectionString()).UseSnakeCaseNamingConvention().Options,
+            new TestClock(), verifyTenant, verifyTenant);
+        Assert.Equal(135.5m, await verifyContext.Vehicles.Where(item => item.Id == vehicle.Id)
+            .Select(item => item.CurrentMileage).SingleAsync());    }
+
+    [Fact]
+    public async Task TripRejectsInvalidOdometerAndIsHiddenFromOtherTenant()
+    {
+        using var client = _factory!.CreateClient();
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        await SeedOrganizationAsync(tenantA);
+        await SeedOrganizationAsync(tenantB);
+        var (vehicle, driver) = await SeedTripResourcesAsync(tenantA);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantA, "CompanyOwner"));
+        var create = await client.PostAsJsonAsync("/api/v1/trips", new
+        {
+            vehicleId = vehicle.Id,
+            driverId = driver.Id,
+            origin = "Origin",
+            destination = "Destination",
+            purpose = "Test",
+            plannedStart = DateTimeOffset.UtcNow.AddMinutes(-1),
+            startMileage = 100m
+        });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        using var json = JsonDocument.Parse(await create.Content.ReadAsStringAsync());
+        var tripId = json.RootElement.GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/v1/trips/{tripId}/start", null)).StatusCode);
+        var invalidCompletion = await client.PostAsJsonAsync($"/api/v1/trips/{tripId}/complete", new
+        {
+            actualEnd = DateTimeOffset.UtcNow.AddMinutes(1),
+            endMileage = 49m
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, invalidCompletion.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantB, "FleetManager"));
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/v1/trips/{tripId}")).StatusCode);
+    }
+
+    private async Task<(Vehicle Vehicle, Driver Driver)> SeedTripResourcesAsync(Guid organizationId)
+    {
+        var vehicle = CreateTestVehicle($"TRIP-{Guid.NewGuid():N}"[..12]);
+        var driver = CreateTestDriver($"{Guid.NewGuid():N}@example.test", $"LIC-{Guid.NewGuid():N}"[..16]);
+        var tenant = new TestTenantContext(organizationId);
+        await using var context = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_postgres.GetConnectionString()).UseSnakeCaseNamingConvention().Options,
+            new TestClock(), tenant, tenant);
+        context.Vehicles.Add(vehicle);
+        context.Drivers.Add(driver);
+        await context.SaveChangesAsync();
+        context.VehicleAssignments.Add(new VehicleAssignment(organizationId, vehicle, driver, DateTimeOffset.UtcNow));
+        await context.SaveChangesAsync();
+        return (vehicle, driver);
     }
 
     [Fact]
@@ -429,7 +527,6 @@ public sealed class AuthenticationTests : IAsyncLifetime
         public string? Email => null;
         public bool IsSystemAdmin => false;
     }
-
     private static Vehicle CreateTestVehicle(string plate) => new(
         plate, "Toyota", "Hilux", 2022, VehicleType.Pickup, FuelType.Diesel, 100m);
 
