@@ -1,18 +1,33 @@
-bin/
-obj/
+# .NET build output
+**/bin/
+**/obj/
 .vs/
+TestResults/
+
+# Ignore protected legacy root locations left by the local filesystem mount.
+/EthioFleet.Api/
+/EthioFleet.Application/
+/EthioFleet.Domain/
+/EthioFleet.Infrastructure/
+/EthioFleet.Tests/
+/ethiofleet-web/
+
+# Node / Angular output
+**/node_modules/
+**/dist/
+**/.angular/
+coverage/
+
+# Local environment and secrets
 .env
 .env.*
 !.env.example
-node_modules/
-dist/
-coverage/
+secrets.json
+**/secrets.json
+*.pfx
+*.key
+
+# IDE and local logs
 *.user
 *.suo
 *.log
-*.pfx
-*.key
-secrets.json
-**/secrets.json
-.angular/
-TestResults/

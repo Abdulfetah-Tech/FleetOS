@@ -1,16 +1,25 @@
 # Engineering decisions
 
-## Phase 1 foundation (2026-10-08)
+## Foundation
 
-- Kept the existing project folders and the `EthioFleet.slnx` layout; corrected references to API -> Application/Infrastructure, Infrastructure -> Application/Domain, Application -> Domain, and Domain -> no projects.
-- Removed generated starter code and the existing vehicle, driver, and dashboard examples because Phase 1 explicitly excludes business features.
-- Used EF Core 10 with Npgsql 10 to match the .NET 10 target. Configured snake_case naming, UTC `timestamptz` audit timestamps, query-filter scaffolding, soft-delete handling, and PostgreSQL `xmin` row-version concurrency tokens.
-- Chose a baseline migration with no business tables. Its purpose is to establish EF migration history without introducing out-of-scope domain features.
-- Kept the local connection string in ASP.NET Core User Secrets; `.env` supplies only local Docker Compose database variables and is ignored by Git.
-- Used the built-in ASP.NET Core exception handler, health checks, rate limiting, CORS, and OpenAPI; Scalar is enabled only in Development.
-- Added API versioning setup and an API-version metadata route, not a business endpoint.
-- Used Testcontainers PostgreSQL for HTTP integration tests, and direct change-tracker testing for audit stamping to avoid an in-memory database.
+- Preserved Clean Architecture dependency direction: API -> Application/Infrastructure, Infrastructure -> Application/Domain, Application -> Domain, Domain -> no project dependencies.
+- Configured EF Core/Npgsql for PostgreSQL, snake_case naming, UTC timestamps, tenant filters, soft deletion, and `xmin` concurrency tokens.
+- Kept local database credentials in User Secrets and ignored `.env` files for local Compose configuration.
+- Used ASP.NET Core exception handling, health checks, rate limiting, CORS, OpenAPI, API versioning, and development-only Scalar.
+- Used Testcontainers PostgreSQL for persistence-backed integration tests and unit tests for domain and audit behavior.
+
+## Vehicle foundation
+
+- Added a tenant-owned Vehicle domain entity with identifier normalization, mileage/status rules, and type/fuel/status enums.
+- Added organization foreign keys and tenant-scoped unique indexes for normalized plates and optional VINs.
+- Added the `AddVehicles` migration and integration tests for vehicle uniqueness and tenant stamping.
+
+## Repository layout (2026-11-05)
+
+- Kept `EthioFleet.slnx` at repository root; grouped .NET projects under `backend/` and Angular under `frontend/ethiofleet/`.
+- Added `backend/Directory.Build.props` and GitHub Actions jobs for backend build/tests and frontend production build.
+- Retained distinct API, Application, Domain, Infrastructure, and Tests projects to keep dependency boundaries explicit.
 
 ## Product-spec availability
 
-The current `docs/product-spec.md` contains three unnumbered sections and does not contain requested sections 4, 5, 25-28, 38, or 39. This phase follows the explicit task scope and the available architecture rules instead.
+`docs/product-spec.md` is a short outline; implementation follows verified code and explicit feature acceptance criteria rather than assuming unimplemented requirements exist.

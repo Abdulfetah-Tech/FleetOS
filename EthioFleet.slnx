@@ -1,7 +1,7 @@
 <Solution>
-  <Project Path="EthioFleet.Api/EthioFleet.Api.csproj" />
-  <Project Path="EthioFleet.Application/EthioFleet.Application.csproj" />
-  <Project Path="EthioFleet.Domain/EthioFleet.Domain.csproj" />
-  <Project Path="EthioFleet.Infrastructure/EthioFleet.Infrastructure.csproj" />
-  <Project Path="EthioFleet.Tests/EthioFleet.Tests.csproj" />
+  <Project Path="backend/EthioFleet.Api/EthioFleet.Api.csproj" />
+  <Project Path="backend/EthioFleet.Application/EthioFleet.Application.csproj" />
+  <Project Path="backend/EthioFleet.Domain/EthioFleet.Domain.csproj" />
+  <Project Path="backend/EthioFleet.Infrastructure/EthioFleet.Infrastructure.csproj" />
+  <Project Path="backend/EthioFleet.Tests/EthioFleet.Tests.csproj" />
 </Solution>

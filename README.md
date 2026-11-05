@@ -1,65 +1,80 @@
 # EthioFleet
 
-EthioFleet is a multi-tenant fleet-management platform foundation for Ethiopian businesses. This Phase 1 delivery is foundation-only; it does not implement fleet business features.
+EthioFleet is a multi-tenant fleet-management platform for businesses. This monorepo uses a Clean Architecture .NET backend and an Angular frontend.
+
+## Repository structure
+
+```text
+EthioFleet/
+├── backend/
+│   ├── EthioFleet.Api/
+│   ├── EthioFleet.Application/
+│   ├── EthioFleet.Domain/
+│   ├── EthioFleet.Infrastructure/
+│   └── EthioFleet.Tests/
+├── frontend/
+│   └── ethiofleet/
+├── docs/
+├── .github/workflows/
+├── EthioFleet.slnx
+└── docker-compose.yml
+```
+
+The solution remains at the repository root. References point inward: API -> Application/Infrastructure, Infrastructure -> Application/Domain, Application -> Domain, Domain -> no project dependencies.
 
 ## Prerequisites
 
 - .NET 10 SDK
-- Docker Desktop with Docker Compose
-- .NET EF CLI tool (restored from the repository manifest below)
+- Node.js 24 and npm compatible with the frontend lockfile
+- Docker Desktop with Compose for PostgreSQL and container-backed integration tests
 
 ## Local setup
 
-1. Copy `.env.example` to `.env` and set a unique local `POSTGRES_PASSWORD`.
-2. Start PostgreSQL and wait until its health check passes:
+1. Copy `.env.example` to `.env` and set a local PostgreSQL password. Compose reads these values when starting PostgreSQL; ASP.NET Core does not automatically load `.env` files.
+2. Start PostgreSQL and check its health:
 
    ```powershell
-   docker compose up -d
+   docker compose up -d postgres
    docker compose ps
    ```
 
-3. Store the local connection string in .NET User Secrets (replace the password with the value from `.env`):
+3. Add the database connection string and JWT signing key to User Secrets:
 
    ```powershell
-   dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=ethiofleet;Username=ethiofleet;Password=<your-local-password>" --project .\EthioFleet.Api\EthioFleet.Api.csproj
+   dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=ethiofleet;Username=ethiofleet;Password=<your-local-password>" --project .\backend\EthioFleet.Api\EthioFleet.Api.csproj
+   dotnet user-secrets set "Authentication:Jwt:SigningKey" "<unique-secret-of-at-least-32-UTF-8-bytes>" --project .\backend\EthioFleet.Api\EthioFleet.Api.csproj
    ```
 
-4. Restore and build:
+4. Restore, build, and test the backend:
 
    ```powershell
    dotnet tool restore
-   dotnet build
+   dotnet restore .\EthioFleet.slnx
+   dotnet build .\EthioFleet.slnx
+   dotnet test .\backend\EthioFleet.Tests\EthioFleet.Tests.csproj
    ```
 
-5. Apply the baseline migration:
+   PostgreSQL integration tests use Testcontainers and require Docker.
+
+5. Apply migrations and run the API:
 
    ```powershell
-   dotnet tool run dotnet-ef database update --project .\EthioFleet.Infrastructure\EthioFleet.Infrastructure.csproj --startup-project .\EthioFleet.Api\EthioFleet.Api.csproj
+   dotnet tool run dotnet-ef database update --project .\backend\EthioFleet.Infrastructure\EthioFleet.Infrastructure.csproj --startup-project .\backend\EthioFleet.Api\EthioFleet.Api.csproj
+   dotnet run --project .\backend\EthioFleet.Api\EthioFleet.Api.csproj
    ```
 
-6. Run the API:
+6. Install and run Angular:
 
    ```powershell
-   dotnet run --project .\EthioFleet.Api\EthioFleet.Api.csproj
+   npm ci --prefix .\frontend\ethiofleet
+   npm start --prefix .\frontend\ethiofleet
    ```
 
-## Endpoints
+## API endpoints
 
 - `GET /health/live` — process liveness.
 - `GET /health/ready` — readiness, including PostgreSQL connectivity.
 - `/api/v1` — API version metadata.
-- `/scalar/v1` — Scalar UI and `/openapi/v1.json` — OpenAPI document, development only.
+- `/scalar/v1` and `/openapi/v1.json` — development-only API documentation.
 
-## Tests
-
-Run `dotnet test`. PostgreSQL-backed API integration tests use Testcontainers and therefore require Docker. Unit tests cover audit stamping without making a database connection.
-
-## Project layout
-
-- `EthioFleet.Domain` — domain primitives, exceptions, and value objects.
-- `EthioFleet.Application` — interfaces, result/error types, validation pipeline, and registration.
-- `EthioFleet.Infrastructure` — EF Core/Npgsql persistence, tenant filters, and registration.
-- `EthioFleet.Api` — HTTP composition, health, diagnostics, versioning, and API middleware.
-- `EthioFleet.Tests` — unit and PostgreSQL-backed integration tests.
-
-See [docs/architecture.md](./docs/architecture.md) and [docs/decisions.md](./docs/decisions.md).
+See `docs/architecture.md`, `docs/decisions.md`, and `docs/product-spec.md` for design and product context.
