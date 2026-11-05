@@ -1,6 +1,7 @@
 using EthioFleet.Application.Interfaces;
 using EthioFleet.Domain.Organizations;
 using EthioFleet.Domain.Users;
+using EthioFleet.Domain.Vehicles;
 using EthioFleet.Infrastructure.Authentication;
 using EthioFleet.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -58,6 +59,37 @@ public sealed class TenantIsolationTests : IAsyncLifetime
         await using var emailDuplicateContext = CreateContext(organizationB.Id);
         emailDuplicateContext.Users.Add(CreateIdentityUser(organizationB.Id, "different-name", "tenant-a@example.test"));
         await Assert.ThrowsAsync<DbUpdateException>(() => emailDuplicateContext.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task VehiclePlateAndVinUniquenessAreScopedToOrganization()
+    {
+        var organizationA = Guid.NewGuid();
+        var organizationB = Guid.NewGuid();
+        await SeedOrganizationsAsync(organizationA, organizationB);
+        var vehicleA = CreateVehicle("ab-123 cd", "1HGCM82633A004352");
+        var vehicleB = CreateVehicle("AB123CD", "1hgcm82633a004352");
+
+        await using (var context = CreateContext(organizationA))
+        {
+            context.Vehicles.Add(vehicleA);
+            await context.SaveChangesAsync();
+        }
+
+        await using (var context = CreateContext(organizationB))
+        {
+            context.Vehicles.Add(vehicleB);
+            await context.SaveChangesAsync();
+            Assert.Equal(organizationB, vehicleB.OrganizationId);
+        }
+
+        await using var duplicatePlateContext = CreateContext(organizationA);
+        duplicatePlateContext.Vehicles.Add(CreateVehicle("AB123CD", null));
+        await Assert.ThrowsAsync<DbUpdateException>(() => duplicatePlateContext.SaveChangesAsync());
+
+        await using var duplicateVinContext = CreateContext(organizationA);
+        duplicateVinContext.Vehicles.Add(CreateVehicle("OTHER-PLATE", "1hgcm82633a004352"));
+        await Assert.ThrowsAsync<DbUpdateException>(() => duplicateVinContext.SaveChangesAsync());
     }
 
     [Fact]
@@ -202,6 +234,25 @@ public sealed class TenantIsolationTests : IAsyncLifetime
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => tenantBContext.SaveChangesAsync());
     }
+
+    private async Task SeedOrganizationsAsync(params Guid[] organizationIds)
+    {
+        await using var context = CreateContext(null);
+        foreach (var organizationId in organizationIds)
+        {
+            context.Organizations.Add(new Organization(
+                $"Tenant {organizationId:N}"[..20], $"ORG{organizationId:N}"[..20],
+                $"{organizationId:N}@example.test", string.Empty, string.Empty)
+            {
+                Id = organizationId
+            });
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    private static Vehicle CreateVehicle(string plate, string? vin) => new(
+        plate, "Toyota", "Hilux", 2020, VehicleType.Pickup, FuelType.Diesel, 100, vin);
 
     private static AppIdentityUser CreateIdentityUser(Guid organizationId, string userName, string email) => new()
     {

@@ -315,6 +315,123 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                     b.ToTable("domain_user_roles", (string)null);
                 });
 
+            modelBuilder.Entity("EthioFleet.Domain.Vehicles.Vehicle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("currency_code");
+
+                    b.Property<decimal>("CurrentMileage")
+                        .HasColumnType("numeric")
+                        .HasColumnName("current_mileage");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<int>("FuelType")
+                        .HasColumnType("integer")
+                        .HasColumnName("fuel_type");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Make")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("make");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("model");
+
+                    b.Property<string>("NormalizedPlateNumber")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("normalized_plate_number");
+
+                    b.Property<string>("NormalizedVin")
+                        .HasColumnType("text")
+                        .HasColumnName("normalized_vin");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("PlateNumber")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("plate_number");
+
+                    b.Property<DateOnly?>("PurchaseDate")
+                        .HasColumnType("date")
+                        .HasColumnName("purchase_date");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer")
+                        .HasColumnName("type");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("Vin")
+                        .HasColumnType("text")
+                        .HasColumnName("vin");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer")
+                        .HasColumnName("year");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_vehicles");
+
+                    b.HasIndex("OrganizationId", "NormalizedPlateNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_vehicles_organization_id_normalized_plate_number");
+
+                    b.HasIndex("OrganizationId", "NormalizedVin")
+                        .IsUnique()
+                        .HasDatabaseName("ix_vehicles_organization_id_normalized_vin")
+                        .HasFilter("normalized_vin IS NOT NULL");
+
+                    b.ToTable("vehicles", (string)null);
+                });
+
             modelBuilder.Entity("EthioFleet.Infrastructure.Authentication.AppIdentityUser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -652,6 +769,16 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                         .HasName("pk_asp_net_user_tokens");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("EthioFleet.Domain.Vehicles.Vehicle", b =>
+                {
+                    b.HasOne("EthioFleet.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_vehicles_organizations_organization_id");
                 });
 
             modelBuilder.Entity("EthioFleet.Infrastructure.Authentication.AppIdentityUser", b =>

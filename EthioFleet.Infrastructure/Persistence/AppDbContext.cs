@@ -3,6 +3,7 @@ using EthioFleet.Application.Interfaces;
 using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Organizations;
 using EthioFleet.Domain.Users;
+using EthioFleet.Domain.Vehicles;
 using EthioFleet.Infrastructure.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -33,6 +34,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
     public DbSet<User> DomainUsers { get; set; }
     public DbSet<Role> DomainRoles { get; set; }
     public DbSet<UserRole> DomainUserRoles { get; set; }
+    public DbSet<Vehicle> Vehicles { get; set; }
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public Guid? CurrentOrganizationId => _tenantContext.OrganizationId;
@@ -54,6 +56,19 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
                 .HasForeignKey(token => token.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+        modelBuilder.Entity<Vehicle>()
+            .HasIndex(vehicle => new { vehicle.OrganizationId, vehicle.NormalizedPlateNumber })
+            .IsUnique();
+        modelBuilder.Entity<Vehicle>()
+            .HasIndex(vehicle => new { vehicle.OrganizationId, vehicle.NormalizedVin })
+            .IsUnique()
+            .HasFilter("normalized_vin IS NOT NULL");
+        modelBuilder.Entity<Vehicle>()
+            .HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(vehicle => vehicle.OrganizationId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<Organization>()
             .HasIndex(organization => organization.Code)
