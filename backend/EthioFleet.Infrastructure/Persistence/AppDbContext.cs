@@ -4,6 +4,7 @@ using EthioFleet.Domain.Assignments;
 using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Fuel;
+using EthioFleet.Domain.Maintenance;
 using EthioFleet.Domain.Organizations;
 using EthioFleet.Domain.Users;
 using EthioFleet.Domain.Trips;
@@ -43,6 +44,8 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
     public DbSet<VehicleAssignment> VehicleAssignments { get; set; }
     public DbSet<Trip> Trips { get; set; }
     public DbSet<FuelRecord> FuelRecords { get; set; }
+    public DbSet<MaintenanceRecord> MaintenanceRecords { get; set; }
+    public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; }
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public Guid? CurrentOrganizationId => _tenantContext.OrganizationId;
@@ -189,6 +192,39 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
                 .WithMany()
                 .HasForeignKey(record => new { record.OrganizationId, record.TripId })
                 .HasPrincipalKey(trip => new { trip.OrganizationId, trip.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<MaintenanceRecord>(entity =>
+        {
+            entity.HasIndex(record => new { record.OrganizationId, record.VehicleId, record.PerformedOn });
+            entity.Property(record => record.Description).HasMaxLength(500).IsRequired();
+            entity.Property(record => record.Odometer).HasPrecision(12, 1);
+            entity.Property(record => record.LaborCost).HasPrecision(14, 2);
+            entity.Property(record => record.PartsCost).HasPrecision(14, 2);
+            entity.Property(record => record.TotalCost).HasPrecision(14, 2);
+            entity.Property(record => record.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(record => record.ServiceProvider).HasMaxLength(160).IsRequired();
+            entity.Property(record => record.Reference).HasMaxLength(100).IsRequired();
+            entity.Property(record => record.Notes).HasMaxLength(2000).IsRequired();
+            entity.HasOne(record => record.Vehicle)
+                .WithMany()
+                .HasForeignKey(record => new { record.OrganizationId, record.VehicleId })
+                .HasPrincipalKey(vehicle => new { vehicle.OrganizationId, vehicle.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<MaintenanceSchedule>(entity =>
+        {
+            entity.HasIndex(schedule => new { schedule.OrganizationId, schedule.Status, schedule.NextDueDate });
+            entity.HasIndex(schedule => new { schedule.OrganizationId, schedule.VehicleId, schedule.NextDueMileage });
+            entity.Property(schedule => schedule.NextDueMileage).HasPrecision(12, 1);
+            entity.Property(schedule => schedule.IntervalMileage).HasPrecision(12, 1);
+            entity.Property(schedule => schedule.Name).HasMaxLength(160).IsRequired();
+            entity.Property(schedule => schedule.Description).HasMaxLength(500).IsRequired();
+            entity.HasOne(schedule => schedule.Vehicle)
+                .WithMany()
+                .HasForeignKey(schedule => new { schedule.OrganizationId, schedule.VehicleId })
+                .HasPrincipalKey(vehicle => new { vehicle.OrganizationId, vehicle.Id })
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

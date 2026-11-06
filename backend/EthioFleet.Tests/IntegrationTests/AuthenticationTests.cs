@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using EthioFleet.Domain.Maintenance;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Assignments;
@@ -126,6 +127,76 @@ public sealed class AuthenticationTests : IAsyncLifetime
         var list = await client.GetAsync("/api/v1/fuel-records");
         using var listJson = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
         Assert.Equal(0, listJson.RootElement.GetProperty("totalCount").GetInt32());
+    }
+    [Fact]
+    public async Task MaintenanceApiPersistsRecordsAndFiltersDueSchedulesByTenant()
+    {
+        using var client = _factory!.CreateClient();
+        var organizationA = Guid.NewGuid();
+        var organizationB = Guid.NewGuid();
+        await SeedOrganizationAsync(organizationA);
+        await SeedOrganizationAsync(organizationB);
+        var vehicleA = CreateTestVehicle($"MAINT-{Guid.NewGuid():N}"[..12]);
+        var vehicleB = CreateTestVehicle($"MAINT-{Guid.NewGuid():N}"[..12]);
+        await using (var contextA = CreateTenantContext(organizationA))
+        {
+            contextA.Vehicles.Add(vehicleA);
+            await contextA.SaveChangesAsync();
+        }
+        await using (var contextB = CreateTenantContext(organizationB))
+        {
+            contextB.Vehicles.Add(vehicleB);
+            await contextB.SaveChangesAsync();
+        }
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), organizationA, "CompanyOwner"));
+        var recordResponse = await client.PostAsJsonAsync("/api/v1/maintenance/records", new
+        {
+            vehicleId = vehicleA.Id,
+            type = MaintenanceType.Preventive,
+            description = "Oil and filter service",
+            performedOn = DateOnly.FromDateTime(DateTime.UtcNow),
+            odometer = 100m,
+            laborCost = 120.50m,
+            partsCost = 300.25m,
+            currencyCode = "ETB"
+        });
+        Assert.Equal(HttpStatusCode.Created, recordResponse.StatusCode);
+        using var recordJson = JsonDocument.Parse(await recordResponse.Content.ReadAsStringAsync());
+        Assert.Equal(420.75m, recordJson.RootElement.GetProperty("totalCost").GetDecimal());
+
+        var scheduleResponse = await client.PostAsJsonAsync("/api/v1/maintenance/schedules", new
+        {
+            vehicleId = vehicleA.Id,
+            name = "Oil service",
+            description = "Every 30 days or 500 km",
+            nextDueDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)),
+            nextDueMileage = (decimal?)null,
+            intervalDays = 30,
+            intervalMileage = (decimal?)500m
+        });
+        Assert.Equal(HttpStatusCode.Created, scheduleResponse.StatusCode);
+        var dueSchedules = await client.GetAsync("/api/v1/maintenance/schedules?dueOnly=true");
+        Assert.Equal(HttpStatusCode.OK, dueSchedules.StatusCode);
+        using var dueJson = JsonDocument.Parse(await dueSchedules.Content.ReadAsStringAsync());
+        Assert.Equal(1, dueJson.RootElement.GetProperty("totalCount").GetInt32());
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), organizationB, "MaintenanceManager"));
+        using var otherTenantJson = JsonDocument.Parse(await (await client.GetAsync(
+            "/api/v1/maintenance/records")).Content.ReadAsStringAsync());
+        Assert.Equal(0, otherTenantJson.RootElement.GetProperty("totalCount").GetInt32());
+    }
+
+    private AppDbContext CreateTenantContext(Guid organizationId)
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(_postgres.GetConnectionString())
+            .UseSnakeCaseNamingConvention()
+            .Options;
+        var tenant = new TestTenantContext(organizationId);
+        return new AppDbContext(options, new TestClock(), tenant, tenant);
     }
     [Fact]
     public async Task TripFlowStartsCompletesAndUpdatesVehicleOdometer()

@@ -1,6 +1,7 @@
 using EthioFleet.Application.Authentication;
 using EthioFleet.Application.Assignments;
 using EthioFleet.Application.Drivers;
+using EthioFleet.Application.Maintenance;
 using EthioFleet.Application.Fuel;
 using EthioFleet.Application.Trips;
 using EthioFleet.Application.Vehicles;
@@ -55,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<IDriverService, DriverService>();
         services.AddScoped<IVehicleAssignmentService, VehicleAssignmentService>();
         services.AddScoped<IVehicleService, VehicleService>();
+        services.AddScoped<IMaintenanceService, MaintenanceService>();
         services.AddScoped<IFuelRecordService, FuelRecordService>();
         services.AddScoped<ITripService, TripService>();
         return services;
