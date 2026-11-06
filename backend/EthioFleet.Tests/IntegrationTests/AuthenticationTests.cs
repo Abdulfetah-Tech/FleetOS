@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Assignments;
+using EthioFleet.Domain.Fuel;
 using EthioFleet.Domain.Trips;
 using EthioFleet.Domain.Vehicles;
 using EthioFleet.Infrastructure.Persistence;
@@ -67,6 +68,65 @@ public sealed class AuthenticationTests : IAsyncLifetime
         await _postgres.DisposeAsync();
     }
 
+    [Fact]
+    public async Task FuelApiCalculatesCostAndEnforcesTenantAndOdometerRules()
+    {
+        using var client = _factory!.CreateClient();
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        await SeedOrganizationAsync(tenantA);
+        await SeedOrganizationAsync(tenantB);
+        var vehicle = CreateTestVehicle($"FUEL-{Guid.NewGuid():N}"[..12]);
+        var driver = CreateTestDriver($"fuel-{Guid.NewGuid():N}@example.test", $"FUEL-LIC-{Guid.NewGuid():N}"[..18]);
+        var tenant = new TestTenantContext(tenantA);
+        await using (var context = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_postgres.GetConnectionString()).UseSnakeCaseNamingConvention().Options,
+            new TestClock(), tenant, tenant))
+        {
+            context.Vehicles.Add(vehicle);
+            context.Drivers.Add(driver);
+            await context.SaveChangesAsync();
+        }
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantA, "CompanyOwner"));
+        var create = await client.PostAsJsonAsync("/api/v1/fuel-records", new
+        {
+            vehicleId = vehicle.Id,
+            driverId = driver.Id,
+            tripId = (Guid?)null,
+            occurredAt = DateTimeOffset.UtcNow,
+            quantityLiters = 12.5m,
+            unitPrice = 2.35m,
+            odometer = 100m,
+            station = "Test Station",
+            currencyCode = "ETB"
+        });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        using var createdJson = JsonDocument.Parse(await create.Content.ReadAsStringAsync());
+        var recordId = createdJson.RootElement.GetProperty("id").GetGuid();
+        Assert.Equal(29.38m, createdJson.RootElement.GetProperty("totalCost").GetDecimal());
+        Assert.Equal(tenantA, createdJson.RootElement.GetProperty("organizationId").GetGuid());
+
+        var invalidOdometer = await client.PostAsJsonAsync("/api/v1/fuel-records", new
+        {
+            vehicleId = vehicle.Id,
+            driverId = driver.Id,
+            occurredAt = DateTimeOffset.UtcNow,
+            quantityLiters = 1m,
+            unitPrice = 2m,
+            odometer = 99m
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, invalidOdometer.StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantB, "FleetManager"));
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/fuel-records/{recordId}")).StatusCode);
+        var list = await client.GetAsync("/api/v1/fuel-records");
+        using var listJson = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
+        Assert.Equal(0, listJson.RootElement.GetProperty("totalCount").GetInt32());
+    }
     [Fact]
     public async Task TripFlowStartsCompletesAndUpdatesVehicleOdometer()
     {
