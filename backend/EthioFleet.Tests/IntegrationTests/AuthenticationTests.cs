@@ -15,6 +15,7 @@ using EthioFleet.Domain.Maintenance;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Assignments;
+using EthioFleet.Domain.Documents;
 using EthioFleet.Domain.Fuel;
 using EthioFleet.Domain.Trips;
 using EthioFleet.Domain.Vehicles;
@@ -69,6 +70,70 @@ public sealed class AuthenticationTests : IAsyncLifetime
         await _postgres.DisposeAsync();
     }
 
+    [Fact]
+    public async Task VehicleDocumentsUsePrivateStorageAndEnforceTenantAccess()
+    {
+        using var client = _factory!.CreateClient();
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        await SeedOrganizationAsync(tenantA);
+        await SeedOrganizationAsync(tenantB);
+        var vehicleA = CreateTestVehicle($"DOC-{Guid.NewGuid():N}"[..12]);
+        var vehicleB = CreateTestVehicle($"DOC-{Guid.NewGuid():N}"[..12]);
+        await using (var contextA = CreateTenantContext(tenantA))
+        {
+            contextA.Vehicles.Add(vehicleA);
+            await contextA.SaveChangesAsync();
+        }
+        await using (var contextB = CreateTenantContext(tenantB))
+        {
+            contextB.Vehicles.Add(vehicleB);
+            await contextB.SaveChangesAsync();
+        }
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantA, "CompanyOwner"));
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent(vehicleA.Id.ToString()), "VehicleId");
+        form.Add(new StringContent(((int)VehicleDocumentType.Insurance).ToString()), "Type");
+        form.Add(new StringContent("Commercial insurance policy"), "Name");
+        form.Add(new StringContent(DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd")), "IssuedOn");
+        form.Add(new StringContent(DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(6)).ToString("yyyy-MM-dd")), "ExpiresOn");
+        var file = new ByteArrayContent("private-test-document"u8.ToArray());
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
+        form.Add(file, "File", "policy.pdf");
+        var upload = await client.PostAsync("/api/v1/vehicle-documents", form);
+        Assert.Equal(HttpStatusCode.Created, upload.StatusCode);
+        using var uploadedJson = JsonDocument.Parse(await upload.Content.ReadAsStringAsync());
+        var documentId = uploadedJson.RootElement.GetProperty("id").GetGuid();
+        Assert.False(uploadedJson.RootElement.TryGetProperty("storageKey", out _));
+
+        var download = await client.GetAsync($"/api/v1/vehicle-documents/{documentId}/content");
+        Assert.Equal(HttpStatusCode.OK, download.StatusCode);
+        Assert.Equal("private-test-document", await download.Content.ReadAsStringAsync());
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantB, "FleetManager"));
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/vehicle-documents/{documentId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/vehicle-documents/{documentId}/content")).StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantA, "CompanyOwner"));
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await client.DeleteAsync($"/api/v1/vehicle-documents/{documentId}")).StatusCode);
+    }
+
+    private AppDbContext CreateTenantContext(Guid organizationId)
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(_postgres.GetConnectionString())
+            .UseSnakeCaseNamingConvention()
+            .Options;
+        var tenant = new TestTenantContext(organizationId);
+        return new AppDbContext(options, new TestClock(), tenant, tenant);
+    }
     [Fact]
     public async Task FuelApiCalculatesCostAndEnforcesTenantAndOdometerRules()
     {
@@ -189,15 +254,6 @@ public sealed class AuthenticationTests : IAsyncLifetime
         Assert.Equal(0, otherTenantJson.RootElement.GetProperty("totalCount").GetInt32());
     }
 
-    private AppDbContext CreateTenantContext(Guid organizationId)
-    {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(_postgres.GetConnectionString())
-            .UseSnakeCaseNamingConvention()
-            .Options;
-        var tenant = new TestTenantContext(organizationId);
-        return new AppDbContext(options, new TestClock(), tenant, tenant);
-    }
     [Fact]
     public async Task TripFlowStartsCompletesAndUpdatesVehicleOdometer()
     {

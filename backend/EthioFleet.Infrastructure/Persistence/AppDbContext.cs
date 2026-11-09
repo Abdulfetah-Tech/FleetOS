@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using EthioFleet.Application.Interfaces;
 using EthioFleet.Domain.Assignments;
 using EthioFleet.Domain.Common;
+using EthioFleet.Domain.Documents;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Fuel;
 using EthioFleet.Domain.Maintenance;
@@ -46,6 +47,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
     public DbSet<FuelRecord> FuelRecords { get; set; }
     public DbSet<MaintenanceRecord> MaintenanceRecords { get; set; }
     public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; }
+    public DbSet<VehicleDocument> VehicleDocuments { get; set; }
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public Guid? CurrentOrganizationId => _tenantContext.OrganizationId;
@@ -224,6 +226,40 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
             entity.HasOne(schedule => schedule.Vehicle)
                 .WithMany()
                 .HasForeignKey(schedule => new { schedule.OrganizationId, schedule.VehicleId })
+                .HasPrincipalKey(vehicle => new { vehicle.OrganizationId, vehicle.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<VehicleDocument>(entity =>
+        {
+            entity.HasIndex(document => new { document.OrganizationId, document.VehicleId, document.ExpiresOn });
+            entity.HasIndex(document => new { document.OrganizationId, document.VehicleId, document.Type, document.Status });
+            entity.HasIndex(document => document.StorageKey).IsUnique();
+            entity.Property(document => document.Name).HasMaxLength(160).IsRequired();
+            entity.Property(document => document.FileName).HasMaxLength(255).IsRequired();
+            entity.Property(document => document.MediaType).HasMaxLength(127).IsRequired();
+            entity.Property(document => document.StorageKey).HasMaxLength(512).IsRequired();
+            entity.Property(document => document.ChecksumSha256).HasMaxLength(64).IsRequired();
+            entity.HasOne(document => document.Vehicle)
+                .WithMany()
+                .HasForeignKey(document => new { document.OrganizationId, document.VehicleId })
+                .HasPrincipalKey(vehicle => new { vehicle.OrganizationId, vehicle.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<VehicleDocument>(entity =>
+        {
+            entity.HasIndex(document => new { document.OrganizationId, document.VehicleId, document.ExpiresOn });
+            entity.HasIndex(document => new { document.OrganizationId, document.VehicleId, document.Type, document.Status });
+            entity.HasIndex(document => document.StorageKey).IsUnique();
+            entity.Property(document => document.Name).HasMaxLength(160).IsRequired();
+            entity.Property(document => document.FileName).HasMaxLength(255).IsRequired();
+            entity.Property(document => document.MediaType).HasMaxLength(127).IsRequired();
+            entity.Property(document => document.StorageKey).HasMaxLength(512).IsRequired();
+            entity.Property(document => document.ChecksumSha256).HasMaxLength(64).IsRequired();
+            entity.HasOne(document => document.Vehicle)
+                .WithMany()
+                .HasForeignKey(document => new { document.OrganizationId, document.VehicleId })
                 .HasPrincipalKey(vehicle => new { vehicle.OrganizationId, vehicle.Id })
                 .OnDelete(DeleteBehavior.Restrict);
         });
