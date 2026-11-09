@@ -11,7 +11,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using EthioFleet.Application.Notifications;
 using EthioFleet.Domain.Inspections;
+using EthioFleet.Domain.Notifications;
 using EthioFleet.Domain.Maintenance;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Common;
@@ -71,6 +73,61 @@ public sealed class AuthenticationTests : IAsyncLifetime
         await _postgres.DisposeAsync();
     }
 
+    [Fact]
+    public async Task NotificationEndpointsAreTenantScopedAndReminderGenerationIsIdempotent()
+    {
+        using var client = _factory!.CreateClient();
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        await SeedOrganizationAsync(tenantA);
+        await SeedOrganizationAsync(tenantB);
+        var vehicleA = CreateTestVehicle($"NOTIFY-{Guid.NewGuid():N}"[..14]);
+        var vehicleB = CreateTestVehicle($"NOTIFY-{Guid.NewGuid():N}"[..14]);
+        var tenantAContext = CreateTenantContext(tenantA);
+        var tenantBContext = CreateTenantContext(tenantB);
+        await using (tenantAContext)
+        {
+            tenantAContext.Vehicles.Add(vehicleA);
+            await tenantAContext.SaveChangesAsync();
+            tenantAContext.VehicleDocuments.Add(new VehicleDocument(tenantA, vehicleA,
+                VehicleDocumentType.Insurance, "Policy", "policy.pdf", "application/pdf",
+                $"{tenantA:N}/{Guid.NewGuid():N}", 100, expiresOn: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(5))));
+            tenantAContext.MaintenanceSchedules.Add(new MaintenanceSchedule(tenantA, vehicleA,
+                "Oil service", null, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)), null, 30, null));
+            await tenantAContext.SaveChangesAsync();
+        }
+        await using (tenantBContext)
+        {
+            tenantBContext.Vehicles.Add(vehicleB);
+            await tenantBContext.SaveChangesAsync();
+            tenantBContext.MaintenanceSchedules.Add(new MaintenanceSchedule(tenantB, vehicleB,
+                "Oil service", null, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)), null, 30, null));
+            await tenantBContext.SaveChangesAsync();
+        }
+
+        var processor = _factory.Services.GetRequiredService<IFleetReminderProcessor>();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var firstCreated = await processor.GenerateDueRemindersAsync(today, CancellationToken.None);
+        var repeatedCreated = await processor.GenerateDueRemindersAsync(today, CancellationToken.None);
+        Assert.Equal(2, firstCreated);
+        Assert.Equal(0, repeatedCreated);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantA, "FleetManager"));
+        var notificationsResponse = await client.GetAsync("/api/v1/notifications?unreadOnly=true");
+        Assert.Equal(HttpStatusCode.OK, notificationsResponse.StatusCode);
+        using var notificationsJson = JsonDocument.Parse(await notificationsResponse.Content.ReadAsStringAsync());
+        Assert.Equal(2, notificationsJson.RootElement.GetProperty("totalCount").GetInt32());
+        var notificationId = notificationsJson.RootElement.GetProperty("items")[0].GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await client.PostAsync($"/api/v1/notifications/{notificationId}/read", null)).StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantB, "FleetManager"));
+        using var otherTenantJson = JsonDocument.Parse(await (await client.GetAsync("/api/v1/notifications"))
+            .Content.ReadAsStringAsync());
+        Assert.Equal(0, otherTenantJson.RootElement.GetProperty("totalCount").GetInt32());
+    }
     [Fact]
     public async Task InspectionApiSnapshotsChecklistAndReportsCriticalFailuresPerTenant()
     {

@@ -815,6 +815,82 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                     b.ToTable("maintenance_schedules", (string)null);
                 });
 
+            modelBuilder.Entity("EthioFleet.Domain.Notifications.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("message");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<DateTimeOffset?>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("integer")
+                        .HasColumnName("severity");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("title");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer")
+                        .HasColumnName("type");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notifications");
+
+                    b.HasIndex("OrganizationId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_notifications_organization_id_idempotency_key");
+
+                    b.HasIndex("OrganizationId", "ReadAt", "CreatedAt")
+                        .HasDatabaseName("ix_notifications_organization_id_read_at_created_at");
+
+                    b.ToTable("notifications", (string)null);
+                });
+
             modelBuilder.Entity("EthioFleet.Domain.Organizations.Organization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1826,6 +1902,16 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_maintenance_schedules_vehicles_organization_id_vehicle_id");
 
                     b.Navigation("Vehicle");
+                });
+
+            modelBuilder.Entity("EthioFleet.Domain.Notifications.Notification", b =>
+                {
+                    b.HasOne("EthioFleet.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_notifications_organizations_organization_id");
                 });
 
             modelBuilder.Entity("EthioFleet.Domain.Trips.Trip", b =>

@@ -1,13 +1,14 @@
-using EthioFleet.Application.Authentication;
 using EthioFleet.Application.Assignments;
-using EthioFleet.Application.Drivers;
-using EthioFleet.Application.Inspections;
+using EthioFleet.Application.Authentication;
 using EthioFleet.Application.Documents;
-using EthioFleet.Application.Maintenance;
+using EthioFleet.Application.Drivers;
 using EthioFleet.Application.Fuel;
+using EthioFleet.Application.Inspections;
+using EthioFleet.Application.Interfaces;
+using EthioFleet.Application.Maintenance;
+using EthioFleet.Application.Notifications;
 using EthioFleet.Application.Trips;
 using EthioFleet.Application.Vehicles;
-using EthioFleet.Application.Interfaces;
 using EthioFleet.Infrastructure.Authentication;
 using EthioFleet.Infrastructure.Persistence;
 using EthioFleet.Infrastructure.Services;
@@ -33,8 +34,7 @@ public static class DependencyInjection
         {
             var config = serviceProvider.GetRequiredService<IConfiguration>();
             var connectionString = config.GetConnectionString("DefaultConnection");
-            options.UseNpgsql(connectionString)
-                .UseSnakeCaseNamingConvention();
+            options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention();
         });
 
         services.AddIdentityCore<AppIdentityUser>(options =>
@@ -63,8 +63,10 @@ public static class DependencyInjection
         services.AddScoped<IVehicleDocumentService, VehicleDocumentService>();
         services.AddSingleton<IPrivateDocumentStorage, LocalPrivateDocumentStorage>();
         services.AddScoped<IFuelRecordService, FuelRecordService>();
-        services.AddScoped<IFuelRecordService, FuelRecordService>();
         services.AddScoped<ITripService, TripService>();
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IFleetReminderProcessor, FleetReminderProcessor>();
+        services.AddHostedService<FleetReminderBackgroundService>();
         return services;
     }
 }

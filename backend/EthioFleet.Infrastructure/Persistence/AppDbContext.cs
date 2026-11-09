@@ -7,6 +7,7 @@ using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Fuel;
 using EthioFleet.Domain.Inspections;
 using EthioFleet.Domain.Maintenance;
+using EthioFleet.Domain.Notifications;
 using EthioFleet.Domain.Organizations;
 using EthioFleet.Domain.Users;
 using EthioFleet.Domain.Trips;
@@ -49,6 +50,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
     public DbSet<MaintenanceRecord> MaintenanceRecords { get; set; }
     public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; }
     public DbSet<VehicleInspection> VehicleInspections { get; set; }
+    public DbSet<Notification> Notifications { get; set; }
     public DbSet<VehicleDocument> VehicleDocuments { get; set; }
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
@@ -235,6 +237,19 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
         modelBuilder.Ignore<InspectionChecklistItemDefinition>();
         modelBuilder.Ignore<InspectionChecklistDefinition>();
         modelBuilder.Ignore<InspectionItemResponse>();
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasIndex(notification => new { notification.OrganizationId, notification.IdempotencyKey }).IsUnique();
+            entity.HasIndex(notification => new { notification.OrganizationId, notification.ReadAt, notification.CreatedAt });
+            entity.Property(notification => notification.Title).HasMaxLength(160).IsRequired();
+            entity.Property(notification => notification.Message).HasMaxLength(1000).IsRequired();
+            entity.Property(notification => notification.IdempotencyKey).HasMaxLength(200).IsRequired();
+            entity.HasOne<Organization>()
+                .WithMany()
+                .HasForeignKey(notification => notification.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
 
         modelBuilder.Entity<VehicleInspection>(entity =>
         {
