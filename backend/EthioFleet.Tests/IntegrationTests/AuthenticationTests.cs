@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using EthioFleet.Domain.Inspections;
 using EthioFleet.Domain.Maintenance;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Common;
@@ -70,6 +71,66 @@ public sealed class AuthenticationTests : IAsyncLifetime
         await _postgres.DisposeAsync();
     }
 
+    [Fact]
+    public async Task InspectionApiSnapshotsChecklistAndReportsCriticalFailuresPerTenant()
+    {
+        using var client = _factory!.CreateClient();
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        await SeedOrganizationAsync(tenantA);
+        await SeedOrganizationAsync(tenantB);
+        var vehicleA = CreateTestVehicle($"INSP-{Guid.NewGuid():N}"[..12]);
+        var vehicleB = CreateTestVehicle($"INSP-{Guid.NewGuid():N}"[..12]);
+        await using (var tenantAContext = CreateTenantContext(tenantA))
+        {
+            tenantAContext.Vehicles.Add(vehicleA);
+            await tenantAContext.SaveChangesAsync();
+        }
+        await using (var tenantBContext = CreateTenantContext(tenantB))
+        {
+            tenantBContext.Vehicles.Add(vehicleB);
+            await tenantBContext.SaveChangesAsync();
+        }
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantA, "Driver"));
+        var created = await client.PostAsJsonAsync("/api/v1/inspections", new
+        {
+            vehicleId = vehicleA.Id,
+            odometer = 100m,
+            checklistVersion = "v1",
+            checklistItems = new[]
+            {
+                new { key = "tires", label = "Tires", isCritical = false },
+                new { key = "brakes", label = "Brakes", isCritical = true }
+            },
+            notes = "Driver walkaround"
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var createdJson = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        var inspectionId = createdJson.RootElement.GetProperty("id").GetGuid();
+
+        var completed = await client.PostAsJsonAsync($"/api/v1/inspections/{inspectionId}/complete", new
+        {
+            responses = new[]
+            {
+                new { key = "tires", result = InspectionResult.Pass, notes = (string?)null },
+                new { key = "brakes", result = InspectionResult.Fail, notes = (string?)"Brake warning light" }
+            }
+        });
+        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
+        using var completedJson = JsonDocument.Parse(await completed.Content.ReadAsStringAsync());
+        Assert.Equal((int)InspectionStatus.Failed, completedJson.RootElement.GetProperty("status").GetInt32());
+        Assert.True(completedJson.RootElement.GetProperty("requiresVehicleOutOfService").GetBoolean());
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantB, "MaintenanceManager"));
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/inspections/{inspectionId}")).StatusCode);
+        using var otherTenantList = JsonDocument.Parse(await (await client.GetAsync("/api/v1/inspections"))
+            .Content.ReadAsStringAsync());
+        Assert.Equal(0, otherTenantList.RootElement.GetProperty("totalCount").GetInt32());
+    }
     [Fact]
     public async Task VehicleDocumentsUsePrivateStorageAndEnforceTenantAccess()
     {

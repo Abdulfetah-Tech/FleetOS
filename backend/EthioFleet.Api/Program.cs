@@ -100,6 +100,12 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("MaintenanceManager", policy => policy.RequireAuthenticatedUser()
         .RequireClaim("organization_id")
         .RequireRole("CompanyOwner", "MaintenanceManager"));
+    options.AddPolicy("InspectionViewer", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("organization_id")
+        .RequireRole("CompanyOwner", "FleetManager", "MaintenanceManager"));
+    options.AddPolicy("InspectionSubmitter", policy => policy.RequireAuthenticatedUser()
+        .RequireClaim("organization_id")
+        .RequireRole("CompanyOwner", "FleetManager", "MaintenanceManager", "Driver"));
     options.AddPolicy("FinanceManager", policy => policy.RequireAuthenticatedUser()
         .RequireClaim("organization_id")
         .RequireRole("CompanyOwner", "FinanceManager"));

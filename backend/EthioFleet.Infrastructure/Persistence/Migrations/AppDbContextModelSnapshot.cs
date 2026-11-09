@@ -496,6 +496,114 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                     b.ToTable("fuel_records", (string)null);
                 });
 
+            modelBuilder.Entity("EthioFleet.Domain.Inspections.VehicleInspection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ChecklistItemsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("checklist_items_json");
+
+                    b.Property<string>("ChecklistVersion")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("checklist_version");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<DateTimeOffset>("InspectedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("inspected_at");
+
+                    b.Property<Guid?>("InspectorUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("inspector_user_id");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("ItemsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("items_json");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("notes");
+
+                    b.Property<decimal>("Odometer")
+                        .HasPrecision(12, 1)
+                        .HasColumnType("numeric(12,1)")
+                        .HasColumnName("odometer");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<bool>("RequiresVehicleOutOfService")
+                        .HasColumnType("boolean")
+                        .HasColumnName("requires_vehicle_out_of_service");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vehicle_id");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_vehicle_inspections");
+
+                    b.HasIndex("OrganizationId", "Status", "InspectedAt")
+                        .HasDatabaseName("ix_vehicle_inspections_organization_id_status_inspected_at");
+
+                    b.HasIndex("OrganizationId", "VehicleId", "InspectedAt")
+                        .HasDatabaseName("ix_vehicle_inspections_organization_id_vehicle_id_inspected_at");
+
+                    b.ToTable("vehicle_inspections", (string)null);
+                });
+
             modelBuilder.Entity("EthioFleet.Domain.Maintenance.MaintenanceRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1677,6 +1785,19 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                     b.Navigation("Driver");
 
                     b.Navigation("Trip");
+
+                    b.Navigation("Vehicle");
+                });
+
+            modelBuilder.Entity("EthioFleet.Domain.Inspections.VehicleInspection", b =>
+                {
+                    b.HasOne("EthioFleet.Domain.Vehicles.Vehicle", "Vehicle")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "VehicleId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_vehicle_inspections_vehicles_organization_id_vehicle_id");
 
                     b.Navigation("Vehicle");
                 });

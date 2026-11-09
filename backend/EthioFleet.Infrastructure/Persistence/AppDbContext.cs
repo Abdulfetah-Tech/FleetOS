@@ -5,6 +5,7 @@ using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Documents;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Fuel;
+using EthioFleet.Domain.Inspections;
 using EthioFleet.Domain.Maintenance;
 using EthioFleet.Domain.Organizations;
 using EthioFleet.Domain.Users;
@@ -47,6 +48,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
     public DbSet<FuelRecord> FuelRecords { get; set; }
     public DbSet<MaintenanceRecord> MaintenanceRecords { get; set; }
     public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; }
+    public DbSet<VehicleInspection> VehicleInspections { get; set; }
     public DbSet<VehicleDocument> VehicleDocuments { get; set; }
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
@@ -226,6 +228,26 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
             entity.HasOne(schedule => schedule.Vehicle)
                 .WithMany()
                 .HasForeignKey(schedule => new { schedule.OrganizationId, schedule.VehicleId })
+                .HasPrincipalKey(vehicle => new { vehicle.OrganizationId, vehicle.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Ignore<InspectionChecklistItemDefinition>();
+        modelBuilder.Ignore<InspectionChecklistDefinition>();
+        modelBuilder.Ignore<InspectionItemResponse>();
+
+        modelBuilder.Entity<VehicleInspection>(entity =>
+        {
+            entity.HasIndex(inspection => new { inspection.OrganizationId, inspection.VehicleId, inspection.InspectedAt });
+            entity.HasIndex(inspection => new { inspection.OrganizationId, inspection.Status, inspection.InspectedAt });
+            entity.Property(inspection => inspection.Odometer).HasPrecision(12, 1);
+            entity.Property(inspection => inspection.ChecklistVersion).HasMaxLength(40).IsRequired();
+            entity.Property(inspection => inspection.ChecklistItemsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(inspection => inspection.ItemsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(inspection => inspection.Notes).HasMaxLength(2000).IsRequired();
+            entity.HasOne(inspection => inspection.Vehicle)
+                .WithMany()
+                .HasForeignKey(inspection => new { inspection.OrganizationId, inspection.VehicleId })
                 .HasPrincipalKey(vehicle => new { vehicle.OrganizationId, vehicle.Id })
                 .OnDelete(DeleteBehavior.Restrict);
         });
