@@ -15,6 +15,7 @@ using EthioFleet.Application.Notifications;
 using EthioFleet.Domain.Inspections;
 using EthioFleet.Domain.Maintenance;
 using EthioFleet.Domain.Notifications;
+using EthioFleet.Domain.Reports;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Assignments;
@@ -73,6 +74,81 @@ public sealed class AuthenticationTests : IAsyncLifetime
         await _postgres.DisposeAsync();
     }
 
+    [Fact]
+    public async Task SavedReportFiltersSupportPresetsCrudAndOwnerIsolation()
+    {
+        using var client = _factory!.CreateClient();
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        await SeedOrganizationAsync(tenantA);
+        await SeedOrganizationAsync(tenantB);
+        var ownerA = Guid.NewGuid();
+        var ownerB = Guid.NewGuid();
+        await SeedIdentityUserAsync(tenantA, ownerA, "owner-a@example.test");
+        await SeedIdentityUserAsync(tenantB, ownerB, "owner-b@example.test");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(ownerA, tenantA, "FinanceManager"));
+
+        var created = await client.PostAsJsonAsync("/api/v1/reports/fleet/saved-filters", new
+        {
+            name = "Current Month ETB",
+            configuration = new
+            {
+                datePreset = FleetReportDatePreset.ThisMonth,
+                currencyCode = "etb"
+            }
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var createdJson = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        var filterId = createdJson.RootElement.GetProperty("id").GetGuid();
+        Assert.Equal("ETB", createdJson.RootElement.GetProperty("configuration").GetProperty("currencyCode").GetString());
+
+        var list = await client.GetAsync("/api/v1/reports/fleet/saved-filters");
+        using var listJson = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
+        Assert.Single(listJson.RootElement.EnumerateArray());
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(ownerB, tenantA, "FinanceManager"));
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/reports/fleet/saved-filters/{filterId}")).StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(ownerA, tenantB, "FinanceManager"));
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/reports/fleet/saved-filters/{filterId}")).StatusCode);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(ownerA, tenantA, "FinanceManager"));
+        var updated = await client.PutAsJsonAsync($"/api/v1/reports/fleet/saved-filters/{filterId}", new
+        {
+            name = "Last 30 Days",
+            configuration = new { datePreset = FleetReportDatePreset.Last30Days }
+        });
+        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await client.DeleteAsync($"/api/v1/reports/fleet/saved-filters/{filterId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/reports/fleet/saved-filters/{filterId}")).StatusCode);
+    }
+
+    private async Task SeedIdentityUserAsync(Guid organizationId, Guid userId, string email)
+    {
+        await using var scope = _factory!.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        dbContext.Users.Add(new EthioFleet.Infrastructure.Authentication.AppIdentityUser
+        {
+            Id = userId,
+            OrganizationId = organizationId,
+            UserName = email,
+            NormalizedUserName = email.ToUpperInvariant(),
+            Email = email,
+            NormalizedEmail = email.ToUpperInvariant(),
+            EmailConfirmed = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+    }
     [Fact]
     public async Task FleetReportsAggregateCostsAndTripsWithinTenantAndExportCsv()
     {

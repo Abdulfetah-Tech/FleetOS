@@ -971,6 +971,79 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                     b.ToTable("organizations", (string)null);
                 });
 
+            modelBuilder.Entity("EthioFleet.Domain.Reports.SavedFleetReportFilter", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ConfigurationJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("configuration_json");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_saved_fleet_report_filters");
+
+                    b.HasIndex("OwnerUserId")
+                        .HasDatabaseName("ix_saved_fleet_report_filters_owner_user_id");
+
+                    b.HasIndex("OrganizationId", "OwnerUserId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_saved_fleet_report_filters_organization_id_owner_user_id_na");
+
+                    b.ToTable("saved_fleet_report_filters", (string)null);
+                });
+
             modelBuilder.Entity("EthioFleet.Domain.Trips.Trip", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1912,6 +1985,23 @@ namespace EthioFleet.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_notifications_organizations_organization_id");
+                });
+
+            modelBuilder.Entity("EthioFleet.Domain.Reports.SavedFleetReportFilter", b =>
+                {
+                    b.HasOne("EthioFleet.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_saved_fleet_report_filters_organizations_organization_id");
+
+                    b.HasOne("EthioFleet.Infrastructure.Authentication.AppIdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_saved_fleet_report_filters_asp_net_users_owner_user_id");
                 });
 
             modelBuilder.Entity("EthioFleet.Domain.Trips.Trip", b =>

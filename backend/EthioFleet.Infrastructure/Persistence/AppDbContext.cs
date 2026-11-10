@@ -10,6 +10,7 @@ using EthioFleet.Domain.Maintenance;
 using EthioFleet.Domain.Notifications;
 using EthioFleet.Domain.Organizations;
 using EthioFleet.Domain.Users;
+using EthioFleet.Domain.Reports;
 using EthioFleet.Domain.Trips;
 using EthioFleet.Domain.Vehicles;
 using EthioFleet.Infrastructure.Authentication;
@@ -51,6 +52,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
     public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; }
     public DbSet<VehicleInspection> VehicleInspections { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    public DbSet<SavedFleetReportFilter> SavedFleetReportFilters { get; set; }
     public DbSet<VehicleDocument> VehicleDocuments { get; set; }
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
@@ -248,6 +250,21 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
             entity.HasOne<Organization>()
                 .WithMany()
                 .HasForeignKey(notification => notification.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SavedFleetReportFilter>(entity =>
+        {
+            entity.HasIndex(filter => new { filter.OrganizationId, filter.OwnerUserId, filter.Name }).IsUnique();
+            entity.Property(filter => filter.Name).HasMaxLength(100).IsRequired();
+            entity.Property(filter => filter.ConfigurationJson).HasColumnType("jsonb").IsRequired();
+            entity.HasOne<AppIdentityUser>()
+                .WithMany()
+                .HasForeignKey(filter => filter.OwnerUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Organization>()
+                .WithMany()
+                .HasForeignKey(filter => filter.OrganizationId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

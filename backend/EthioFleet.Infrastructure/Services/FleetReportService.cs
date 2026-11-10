@@ -1,11 +1,85 @@
 using EthioFleet.Application.Reports;
+using EthioFleet.Domain.Reports;
+using EthioFleet.Application.Interfaces;
 using EthioFleet.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace EthioFleet.Infrastructure.Services;
 
-public sealed class FleetReportService(AppDbContext dbContext) : IFleetReportService
+public sealed class FleetReportService(AppDbContext dbContext, ICurrentUser currentUser) : IFleetReportService
 {
+    public async Task<IReadOnlyCollection<SavedFleetReportFilterResponse>> ListSavedFiltersAsync(CancellationToken cancellationToken)
+    {
+        var (organizationId, userId) = RequireOwnerContext();
+        var filters = await dbContext.SavedFleetReportFilters.AsNoTracking()
+            .Where(filter => filter.OrganizationId == organizationId && filter.OwnerUserId == userId)
+            .OrderBy(filter => filter.Name)
+            .ToListAsync(cancellationToken);
+        return filters.Select(ToSavedFilterResponse).ToArray();
+    }
+
+    public async Task<SavedFleetReportFilterResponse> CreateSavedFilterAsync(
+        CreateSavedFleetReportFilterRequest request, CancellationToken cancellationToken)
+    {
+        var (organizationId, userId) = RequireOwnerContext();
+        var filter = new SavedFleetReportFilter(organizationId, userId, request.Name, request.Configuration);
+        dbContext.SavedFleetReportFilters.Add(filter);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToSavedFilterResponse(filter);
+    }
+
+    public async Task<SavedFleetReportFilterResponse?> GetSavedFilterAsync(Guid filterId, CancellationToken cancellationToken)
+    {
+        var (organizationId, userId) = RequireOwnerContext();
+        var filter = await dbContext.SavedFleetReportFilters.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == filterId && item.OrganizationId == organizationId &&
+                item.OwnerUserId == userId, cancellationToken);
+        return filter is null ? null : ToSavedFilterResponse(filter);
+    }
+
+    public async Task<SavedFleetReportFilterResponse?> UpdateSavedFilterAsync(
+        Guid filterId, UpdateSavedFleetReportFilterRequest request, CancellationToken cancellationToken)
+    {
+        var (organizationId, userId) = RequireOwnerContext();
+        var filter = await dbContext.SavedFleetReportFilters
+            .SingleOrDefaultAsync(item => item.Id == filterId && item.OrganizationId == organizationId &&
+                item.OwnerUserId == userId, cancellationToken);
+        if (filter is null)
+        {
+            return null;
+        }
+        filter.Update(request.Name, request.Configuration);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToSavedFilterResponse(filter);
+    }
+
+    public async Task<bool> DeleteSavedFilterAsync(Guid filterId, CancellationToken cancellationToken)
+    {
+        var (organizationId, userId) = RequireOwnerContext();
+        var filter = await dbContext.SavedFleetReportFilters
+            .SingleOrDefaultAsync(item => item.Id == filterId && item.OrganizationId == organizationId &&
+                item.OwnerUserId == userId, cancellationToken);
+        if (filter is null)
+        {
+            return false;
+        }
+        dbContext.SavedFleetReportFilters.Remove(filter);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    private (Guid OrganizationId, Guid UserId) RequireOwnerContext()
+    {
+        if (currentUser.OrganizationId is not Guid organizationId || currentUser.UserId is not Guid userId)
+        {
+            throw new UnauthorizedAccessException("An authenticated user and organization are required.");
+        }
+        return (organizationId, userId);
+    }
+
+    private static SavedFleetReportFilterResponse ToSavedFilterResponse(SavedFleetReportFilter filter) => new(
+        filter.Id, filter.Name, filter.Configuration, filter.CreatedAt, filter.UpdatedAt);
+
     public async Task<FleetReportResponse> GetAsync(FleetReportRequest request, CancellationToken cancellationToken)
     {
         if (request.From == default || request.To < request.From || request.To.DayNumber - request.From.DayNumber > 366)

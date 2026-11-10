@@ -1,5 +1,10 @@
+using EthioFleet.Domain.Reports;
+
 namespace EthioFleet.Application.Reports;
 
+public sealed record CreateSavedFleetReportFilterRequest(string Name, FleetReportFilterConfiguration Configuration);
+public sealed record UpdateSavedFleetReportFilterRequest(string Name, FleetReportFilterConfiguration Configuration);
+public sealed record SavedFleetReportFilterResponse(Guid Id, string Name, FleetReportFilterConfiguration Configuration, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 public sealed record FleetReportRequest(DateOnly From, DateOnly To);
 public sealed record VehicleCostRow(Guid VehicleId, string PlateNumber, string CurrencyCode, decimal FuelCost, decimal MaintenanceCost, int FuelRecordCount, int MaintenanceRecordCount);
 public sealed record CurrencyCostSummary(string CurrencyCode, decimal FuelCost, decimal MaintenanceCost, decimal TotalCost);
@@ -14,6 +19,11 @@ public sealed record FleetReportResponse(
 public interface IFleetReportService
 {
     Task<FleetReportResponse> GetAsync(FleetReportRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<SavedFleetReportFilterResponse>> ListSavedFiltersAsync(CancellationToken cancellationToken);
+    Task<SavedFleetReportFilterResponse> CreateSavedFilterAsync(CreateSavedFleetReportFilterRequest request, CancellationToken cancellationToken);
+    Task<SavedFleetReportFilterResponse?> GetSavedFilterAsync(Guid filterId, CancellationToken cancellationToken);
+    Task<SavedFleetReportFilterResponse?> UpdateSavedFilterAsync(Guid filterId, UpdateSavedFleetReportFilterRequest request, CancellationToken cancellationToken);
+    Task<bool> DeleteSavedFilterAsync(Guid filterId, CancellationToken cancellationToken);
 }
 
 public static class FleetReportCsv
