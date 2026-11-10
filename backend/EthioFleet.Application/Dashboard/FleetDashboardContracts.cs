@@ -16,7 +16,8 @@ public sealed record FleetDashboardResponse(
     int TripsToday,
     IReadOnlyCollection<DashboardCurrencyTotal> MonthlyCosts,
     IReadOnlyCollection<UpcomingDocumentExpiry> UpcomingDocumentExpiries,
-    IReadOnlyCollection<DueMaintenanceSchedule> DueMaintenance);
+    IReadOnlyCollection<DueMaintenanceSchedule> DueMaintenance,
+    int OpenIncidents);
 
 public interface IFleetDashboardService
 {

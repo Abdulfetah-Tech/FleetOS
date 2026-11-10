@@ -1,4 +1,5 @@
 using EthioFleet.Application.Dashboard;
+using EthioFleet.Domain.Incidents;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Maintenance;
 using EthioFleet.Domain.Trips;
@@ -71,8 +72,12 @@ public sealed class FleetDashboardService(AppDbContext dbContext, EthioFleet.App
                 schedule.Vehicle.CurrentMileage))
             .ToListAsync(cancellationToken);
 
+        var activeIncidents = await dbContext.Incidents.CountAsync(incident =>
+            incident.Status == IncidentStatus.Open || incident.Status == IncidentStatus.UnderInvestigation,
+            cancellationToken);
+
         return new FleetDashboardResponse(asOf, month, totalVehicles, activeVehicles, vehiclesInMaintenance,
             Math.Max(0, activeVehicles - vehiclesInMaintenance), totalDrivers, activeDrivers, tripsToday,
-            costs, documents, dueSchedules);
+            costs, documents, dueSchedules, activeIncidents);
     }
 }

@@ -5,6 +5,7 @@ using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Documents;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Fuel;
+using EthioFleet.Domain.Incidents;
 using EthioFleet.Domain.Inspections;
 using EthioFleet.Domain.Maintenance;
 using EthioFleet.Domain.Notifications;
@@ -51,6 +52,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
     public DbSet<MaintenanceRecord> MaintenanceRecords { get; set; }
     public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; }
     public DbSet<VehicleInspection> VehicleInspections { get; set; }
+    public DbSet<Incident> Incidents { get; set; }
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<SavedFleetReportFilter> SavedFleetReportFilters { get; set; }
     public DbSet<VehicleDocument> VehicleDocuments { get; set; }
@@ -281,6 +283,34 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
                 .WithMany()
                 .HasForeignKey(inspection => new { inspection.OrganizationId, inspection.VehicleId })
                 .HasPrincipalKey(vehicle => new { vehicle.OrganizationId, vehicle.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Incident>(entity =>
+        {
+            entity.HasAlternateKey(incident => new { incident.OrganizationId, incident.Id });
+            entity.HasIndex(incident => new { incident.OrganizationId, incident.Status, incident.OccurredAt });
+            entity.HasIndex(incident => new { incident.OrganizationId, incident.VehicleId, incident.OccurredAt });
+            entity.HasIndex(incident => new { incident.OrganizationId, incident.Severity, incident.Status });
+            entity.Property(incident => incident.Location).HasMaxLength(240).IsRequired();
+            entity.Property(incident => incident.Description).HasMaxLength(2000).IsRequired();
+            entity.Property(incident => incident.EstimatedCost).HasPrecision(14, 2);
+            entity.Property(incident => incident.ActualCost).HasPrecision(14, 2);
+            entity.Property(incident => incident.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(incident => incident.ResolutionNotes).HasMaxLength(2000).IsRequired();
+            entity.HasOne(incident => incident.Vehicle)
+                .WithMany()
+                .HasForeignKey(incident => new { incident.OrganizationId, incident.VehicleId })
+                .HasPrincipalKey(vehicle => new { vehicle.OrganizationId, vehicle.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(incident => incident.Driver)
+                .WithMany()
+                .HasForeignKey(incident => new { incident.OrganizationId, incident.DriverId })
+                .HasPrincipalKey(driver => new { driver.OrganizationId, driver.Id })
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<Organization>()
+                .WithMany()
+                .HasForeignKey(incident => incident.OrganizationId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

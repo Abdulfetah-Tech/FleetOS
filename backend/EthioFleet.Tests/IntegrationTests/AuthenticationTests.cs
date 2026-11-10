@@ -12,6 +12,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using EthioFleet.Application.Notifications;
+using EthioFleet.Domain.Incidents;
 using EthioFleet.Domain.Inspections;
 using EthioFleet.Domain.Maintenance;
 using EthioFleet.Domain.Notifications;
@@ -337,6 +338,63 @@ public sealed class AuthenticationTests : IAsyncLifetime
         using var otherTenantJson = JsonDocument.Parse(await (await client.GetAsync("/api/v1/notifications"))
             .Content.ReadAsStringAsync());
         Assert.Equal(0, otherTenantJson.RootElement.GetProperty("totalCount").GetInt32());
+    }
+    [Fact]
+    public async Task IncidentApiCreatesResolvesAndEnforcesTenantBoundaries()
+    {
+        using var client = _factory!.CreateClient();
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        await SeedOrganizationAsync(tenantA);
+        await SeedOrganizationAsync(tenantB);
+        var vehicleA = CreateTestVehicle($"INC-{Guid.NewGuid():N}"[..12]);
+        var vehicleB = CreateTestVehicle($"INC-{Guid.NewGuid():N}"[..12]);
+        await using (var contextA = CreateTenantContext(tenantA))
+        {
+            contextA.Vehicles.Add(vehicleA);
+            await contextA.SaveChangesAsync();
+        }
+        await using (var contextB = CreateTenantContext(tenantB))
+        {
+            contextB.Vehicles.Add(vehicleB);
+            await contextB.SaveChangesAsync();
+        }
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantA, "CompanyOwner"));
+        var response = await client.PostAsJsonAsync("/api/v1/incidents", new
+        {
+            vehicleId = vehicleA.Id,
+            driverId = (Guid?)null,
+            type = IncidentType.Accident,
+            severity = IncidentSeverity.High,
+            occurredAt = DateTimeOffset.UtcNow,
+            location = "Bole Road",
+            description = "Minor collision",
+            estimatedCost = 400m,
+            currencyCode = "ETB"
+        });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var incidentId = json.RootElement.GetProperty("id").GetGuid();
+
+        var resolved = await client.PatchAsJsonAsync($"/api/v1/incidents/{incidentId}/status", new
+        {
+            status = IncidentStatus.Resolved,
+            resolutionNotes = "Panel repaired",
+            actualCost = 350.25m
+        });
+        Assert.Equal(HttpStatusCode.OK, resolved.StatusCode);
+        using var resolvedJson = JsonDocument.Parse(await resolved.Content.ReadAsStringAsync());
+        Assert.Equal(350.25m, resolvedJson.RootElement.GetProperty("actualCost").GetDecimal());
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantB, "FleetManager"));
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.GetAsync($"/api/v1/incidents/{incidentId}")).StatusCode);
+        using var otherTenant = JsonDocument.Parse(await (await client.GetAsync("/api/v1/incidents"))
+            .Content.ReadAsStringAsync());
+        Assert.Equal(0, otherTenant.RootElement.GetProperty("totalCount").GetInt32());
     }
     [Fact]
     public async Task InspectionApiSnapshotsChecklistAndReportsCriticalFailuresPerTenant()
