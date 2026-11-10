@@ -6,6 +6,7 @@ using EthioFleet.Application.Fuel;
 using EthioFleet.Application.Inspections;
 using EthioFleet.Application.Interfaces;
 using EthioFleet.Application.Maintenance;
+using EthioFleet.Application.Reports;
 using EthioFleet.Application.Notifications;
 using EthioFleet.Application.Trips;
 using EthioFleet.Application.Vehicles;
@@ -66,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<ITripService, TripService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IFleetReminderProcessor, FleetReminderProcessor>();
+        services.AddScoped<IFleetReportService, FleetReportService>();
         services.AddHostedService<FleetReminderBackgroundService>();
         return services;
     }

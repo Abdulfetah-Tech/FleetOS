@@ -13,8 +13,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using EthioFleet.Application.Notifications;
 using EthioFleet.Domain.Inspections;
-using EthioFleet.Domain.Notifications;
 using EthioFleet.Domain.Maintenance;
+using EthioFleet.Domain.Notifications;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Assignments;
@@ -73,6 +73,82 @@ public sealed class AuthenticationTests : IAsyncLifetime
         await _postgres.DisposeAsync();
     }
 
+    [Fact]
+    public async Task FleetReportsAggregateCostsAndTripsWithinTenantAndExportCsv()
+    {
+        using var client = _factory!.CreateClient();
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        await SeedOrganizationAsync(tenantA);
+        await SeedOrganizationAsync(tenantB);
+        var vehicleA = CreateTestVehicle("=CMD()REPORT");
+        var vehicleB = CreateTestVehicle("TENANT-B-REPORT");
+        var driverA = CreateTestDriver("report-a@example.test", "REPORT-LIC-A");
+        var driverB = CreateTestDriver("report-b@example.test", "REPORT-LIC-B");
+        var tenantAContext = new TestTenantContext(tenantA);
+        var tenantBContext = new TestTenantContext(tenantB);
+        VehicleAssignment assignmentA;
+        Trip tripA;
+        await using (var contextA = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_postgres.GetConnectionString()).UseSnakeCaseNamingConvention().Options,
+            new TestClock(), tenantAContext, tenantAContext))
+        {
+            contextA.Vehicles.Add(vehicleA);
+            contextA.Drivers.Add(driverA);
+            await contextA.SaveChangesAsync();
+            assignmentA = new VehicleAssignment(tenantA, vehicleA, driverA, DateTimeOffset.UtcNow.AddDays(-1));
+            contextA.VehicleAssignments.Add(assignmentA);
+            await contextA.SaveChangesAsync();
+            contextA.FuelRecords.Add(new EthioFleet.Domain.Fuel.FuelRecord(tenantA, vehicleA, driverA, null,
+                DateTimeOffset.UtcNow.AddHours(-22), 10m, 3m, 100m));
+            await contextA.SaveChangesAsync();
+            tripA = new Trip(tenantA, vehicleA, driverA, assignmentA, "Origin", "Destination", "Delivery",
+                DateTimeOffset.UtcNow.AddDays(-1), 100m);
+            tripA.Start(DateTimeOffset.UtcNow.AddDays(-1));
+            tripA.Complete(DateTimeOffset.UtcNow.AddHours(-20), 125m);
+            contextA.Trips.Add(tripA);
+            contextA.MaintenanceRecords.Add(new EthioFleet.Domain.Maintenance.MaintenanceRecord(tenantA, vehicleA,
+                MaintenanceType.Preventive, "Oil service", DateOnly.FromDateTime(DateTime.UtcNow), 120m, 2m, 3m));
+            await contextA.SaveChangesAsync();
+        }
+        await using (var contextB = new AppDbContext(
+            new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(_postgres.GetConnectionString()).UseSnakeCaseNamingConvention().Options,
+            new TestClock(), tenantBContext, tenantBContext))
+        {
+            contextB.Vehicles.Add(vehicleB);
+            contextB.Drivers.Add(driverB);
+            await contextB.SaveChangesAsync();
+            contextB.MaintenanceRecords.Add(new EthioFleet.Domain.Maintenance.MaintenanceRecord(tenantB, vehicleB,
+                MaintenanceType.Preventive, "Other tenant service", DateOnly.FromDateTime(DateTime.UtcNow), 100m, 100m, 100m));
+            await contextB.SaveChangesAsync();
+        }
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantA, "FinanceManager"));
+        var from = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-2));
+        var to = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1));
+        var response = await client.GetAsync($"/api/v1/reports/fleet?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var reportJson = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(1, reportJson.RootElement.GetProperty("vehicleCosts").GetArrayLength());
+        Assert.Equal(35m, reportJson.RootElement.GetProperty("costsByCurrency")[0].GetProperty("totalCost").GetDecimal());
+        Assert.Equal(1, reportJson.RootElement.GetProperty("utilization").GetArrayLength());
+        Assert.Equal(25m, reportJson.RootElement.GetProperty("utilization")[0].GetProperty("distanceKm").GetDecimal());
+
+        var csv = await client.GetAsync($"/api/v1/reports/fleet/export.csv?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
+        Assert.Equal(HttpStatusCode.OK, csv.StatusCode);
+        Assert.Equal("text/csv", csv.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("'=CMD()REPORT", await csv.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantB, "FinanceManager"));
+        using var otherTenantJson = JsonDocument.Parse(await (await client.GetAsync(
+            $"/api/v1/reports/fleet?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}")).Content.ReadAsStringAsync());
+        Assert.Single(otherTenantJson.RootElement.GetProperty("vehicleCosts").EnumerateArray());
+        Assert.Equal(vehicleB.Id, otherTenantJson.RootElement.GetProperty("vehicleCosts")[0].GetProperty("vehicleId").GetGuid());
+        Assert.Equal(200m, otherTenantJson.RootElement.GetProperty("vehicleCosts")[0].GetProperty("maintenanceCost").GetDecimal());
+        Assert.DoesNotContain(otherTenantJson.RootElement.GetProperty("vehicleCosts").EnumerateArray(), item => item.GetProperty("vehicleId").GetGuid() == vehicleA.Id);
+    }
     [Fact]
     public async Task NotificationEndpointsAreTenantScopedAndReminderGenerationIsIdempotent()
     {
