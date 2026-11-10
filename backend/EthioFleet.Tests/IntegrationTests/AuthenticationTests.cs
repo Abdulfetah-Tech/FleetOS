@@ -18,6 +18,7 @@ using EthioFleet.Domain.Notifications;
 using EthioFleet.Domain.Reports;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Domain.Common;
+using EthioFleet.Application.Dashboard;
 using EthioFleet.Domain.Assignments;
 using EthioFleet.Domain.Documents;
 using EthioFleet.Domain.Fuel;
@@ -148,6 +149,63 @@ public sealed class AuthenticationTests : IAsyncLifetime
             UpdatedAt = DateTimeOffset.UtcNow
         });
         await dbContext.SaveChangesAsync();
+    }
+    [Fact]
+    public async Task FleetDashboardAggregatesTenantKpisAndUpcomingWork()
+    {
+        using var client = _factory!.CreateClient();
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        await SeedOrganizationAsync(tenantA);
+        await SeedOrganizationAsync(tenantB);
+        var vehicleA = CreateTestVehicle($"DASH-{Guid.NewGuid():N}"[..12]);
+        var vehicleB = CreateTestVehicle($"DASH-{Guid.NewGuid():N}"[..12]);
+        var driverA = CreateTestDriver($"dash-{Guid.NewGuid():N}@example.test", $"DASH-LIC-{Guid.NewGuid():N}"[..16]);
+        var tenantAContext = CreateTenantContext(tenantA);
+        await using (tenantAContext)
+        {
+            tenantAContext.Vehicles.Add(vehicleA);
+            tenantAContext.Drivers.Add(driverA);
+            await tenantAContext.SaveChangesAsync();
+            tenantAContext.FuelRecords.Add(new EthioFleet.Domain.Fuel.FuelRecord(tenantA, vehicleA, driverA, null,
+                DateTimeOffset.UtcNow, 5m, 4m, vehicleA.CurrentMileage));
+            tenantAContext.MaintenanceRecords.Add(new EthioFleet.Domain.Maintenance.MaintenanceRecord(tenantA,
+                vehicleA, MaintenanceType.Preventive, "Service", DateOnly.FromDateTime(DateTime.UtcNow),
+                vehicleA.CurrentMileage, 2m, 3m));
+            tenantAContext.VehicleDocuments.Add(new VehicleDocument(tenantA, vehicleA, VehicleDocumentType.Insurance,
+                "Insurance", "insurance.pdf", "application/pdf", $"{tenantA:N}/{Guid.NewGuid():N}", 1024,
+                expiresOn: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(7))));
+            tenantAContext.MaintenanceSchedules.Add(new MaintenanceSchedule(tenantA, vehicleA, "Oil service", null,
+                DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)), null, 30, null));
+            await tenantAContext.SaveChangesAsync();
+        }
+        var tenantBContext = CreateTenantContext(tenantB);
+        await using (tenantBContext)
+        {
+            tenantBContext.Vehicles.Add(vehicleB);
+            await tenantBContext.SaveChangesAsync();
+        }
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantA, "FleetManager"));
+        var response = await client.GetAsync("/api/v1/dashboard/fleet");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(1, json.RootElement.GetProperty("totalVehicles").GetInt32());
+        Assert.Equal(1, json.RootElement.GetProperty("activeVehicles").GetInt32());
+        Assert.Equal(1, json.RootElement.GetProperty("totalDrivers").GetInt32());
+        Assert.Equal(25m, json.RootElement.GetProperty("monthlyCosts")[0].GetProperty("operatingCost").GetDecimal());
+        Assert.Equal(1, json.RootElement.GetProperty("upcomingDocumentExpiries").GetArrayLength());
+        Assert.Equal(1, json.RootElement.GetProperty("dueMaintenance").GetArrayLength());
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantB, "FleetManager"));
+        using var otherTenantJson = JsonDocument.Parse(await (await client.GetAsync("/api/v1/dashboard/fleet"))
+            .Content.ReadAsStringAsync());
+        Assert.Equal(1, otherTenantJson.RootElement.GetProperty("totalVehicles").GetInt32());
+        Assert.Equal(0, otherTenantJson.RootElement.GetProperty("totalDrivers").GetInt32());
+        Assert.Empty(otherTenantJson.RootElement.GetProperty("monthlyCosts").EnumerateArray());
+        Assert.Empty(otherTenantJson.RootElement.GetProperty("upcomingDocumentExpiries").EnumerateArray());
     }
     [Fact]
     public async Task FleetReportsAggregateCostsAndTripsWithinTenantAndExportCsv()
