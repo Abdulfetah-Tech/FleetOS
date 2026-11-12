@@ -60,7 +60,8 @@ Production deployment must persist and share ASP.NET Core Data Protection keys a
 | GET | `/api/v1/vehicles/{vehicleId}/assignment` | Fleet manager | Read active assignment |
 | POST | `/api/v1/vehicles/{vehicleId}/assignment` | Company owner | Create/replace assignment |
 | DELETE | `/api/v1/vehicles/{vehicleId}/assignment` | Company owner | End assignment |
-| GET/POST/PUT/PATCH/DELETE | `/api/v1/drivers[/{id}]` | Fleet manager for reads/status; company owner for writes | Driver profile and status operations |
+| GET | `/api/v1/drivers[/{id}]` | Fleet manager | List/search drivers or read a driver |
+| POST/PUT/PATCH/DELETE | `/api/v1/drivers[/{id}]` | Company owner | Create/update profile, change status, or soft-delete a driver |
 | GET/POST/DELETE | `/api/v1/fuel-records[/{id}]` | Fleet manager for reads; company owner for create/delete | Fuel transactions |
 | GET/POST | `/api/v1/maintenance/records` | Maintenance manager for reads; company owner for create | Maintenance history |
 | GET/POST | `/api/v1/maintenance/schedules` | Maintenance manager for reads; company owner for create | Preventive schedules |
@@ -78,6 +79,8 @@ Production deployment must persist and share ASP.NET Core Data Protection keys a
 | GET/POST/PATCH | `/api/v1/incidents[/{id}]` | Fleet manager for reads; company owner for create/status changes | Incident management |
 
 Vehicle listing accepts `page` (values below 1 normalize to 1), `pageSize` (normalized to 1–100), and optional `search` (maximum 100 characters; plate, make, or model). The response contains `items`, normalized `page` and `pageSize`, and `totalCount`. Missing vehicles return 404 Problem Details; duplicate plate/VIN conflicts return 409 Problem Details. Domain validation errors use the global 400 Problem Details response.
+
+Driver listing accepts `page`, `pageSize`, and optional `search` (maximum 100 characters; full name, email, phone, or license number). Pagination uses the same normalization and response shape. Driver status mutations, like profile writes and deletion, require the CompanyOwner policy; reads require FleetManager. Missing drivers return 404 Problem Details, duplicate license conflicts return 409 Problem Details, and invalid input returns 400.
 
 ## Dashboard, reports, and notifications
 

@@ -4,6 +4,7 @@ import { FleetWorkspaceComponent } from './core/layout/fleet-workspace.component
 import { FleetDashboardComponent } from './features/dashboard/fleet-dashboard.component';
 import { LoginComponent } from './features/auth/login.component';
 import { RegistrationComponent } from './features/auth/registration.component';
+import { DriverManagementComponent } from './features/drivers/driver-management.component';
 import { VehicleManagementComponent } from './features/vehicles/vehicle-management.component';
 
 export const routes: Routes = [
@@ -16,6 +17,7 @@ export const routes: Routes = [
     children: [
       { path: 'dashboard', component: FleetDashboardComponent },
       { path: 'vehicles', component: VehicleManagementComponent },
+      { path: 'drivers', component: DriverManagementComponent },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
     ],
   },

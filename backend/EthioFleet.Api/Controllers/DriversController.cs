@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Asp.Versioning;
 using EthioFleet.Application.Drivers;
 using Microsoft.AspNetCore.Authorization;
@@ -15,10 +16,11 @@ public sealed class DriversController(IDriverService driverService) : Controller
 {
     [HttpGet]
     [ProducesResponseType<DriverPage>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<DriverPage>> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
-        [FromQuery] string? search = null,
+        [FromQuery, StringLength(100)] string? search = null,
         CancellationToken cancellationToken = default)
     {
         var result = await driverService.ListAsync(new DriverListQuery(page, pageSize, search), cancellationToken);
@@ -27,18 +29,20 @@ public sealed class DriversController(IDriverService driverService) : Controller
 
     [HttpGet("{id:guid}")]
     [ProducesResponseType<DriverResponse>(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<DriverResponse>> Get(Guid id, CancellationToken cancellationToken)
     {
         var result = await driverService.GetAsync(id, cancellationToken);
-        return result.Succeeded ? Ok(result.Driver) : NotFound(new { error = result.Error });
+        return result.Succeeded
+            ? Ok(result.Driver)
+            : Problem(statusCode: StatusCodes.Status404NotFound, title: "Driver not found", detail: result.Error);
     }
 
     [HttpPost]
     [Authorize(Policy = "CompanyOwner")]
     [ProducesResponseType<DriverResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<DriverResponse>> Create(CreateDriverRequest request, CancellationToken cancellationToken)
     {
         var result = await driverService.CreateAsync(request, cancellationToken);
@@ -48,13 +52,14 @@ public sealed class DriversController(IDriverService driverService) : Controller
     [HttpPut("{id:guid}")]
     [Authorize(Policy = "CompanyOwner")]
     [ProducesResponseType<DriverResponse>(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<DriverResponse>> Update(Guid id, UpdateDriverRequest request, CancellationToken cancellationToken)
     {
         var result = await driverService.UpdateAsync(id, request, cancellationToken);
         if (result.NotFound)
         {
-            return NotFound(new { error = result.Error });
+            return Problem(statusCode: StatusCodes.Status404NotFound, title: "Driver not found", detail: result.Error);
         }
 
         return Ok(result.Driver);
@@ -63,13 +68,14 @@ public sealed class DriversController(IDriverService driverService) : Controller
     [HttpPatch("{id:guid}/status")]
     [Authorize(Policy = "CompanyOwner")]
     [ProducesResponseType<DriverResponse>(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<DriverResponse>> ChangeStatus(Guid id, DriverStatusRequest request, CancellationToken cancellationToken)
     {
         var result = await driverService.ChangeStatusAsync(id, request, cancellationToken);
         if (result.NotFound)
         {
-            return NotFound(new { error = result.Error });
+            return Problem(statusCode: StatusCodes.Status404NotFound, title: "Driver not found", detail: result.Error);
         }
 
         return Ok(result.Driver);
@@ -78,10 +84,12 @@ public sealed class DriversController(IDriverService driverService) : Controller
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = "CompanyOwner")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var deleted = await driverService.DeleteAsync(id, cancellationToken);
-        return deleted ? NoContent() : NotFound();
+        return deleted
+            ? NoContent()
+            : Problem(statusCode: StatusCodes.Status404NotFound, title: "Driver not found", detail: "Driver was not found.");
     }
 }

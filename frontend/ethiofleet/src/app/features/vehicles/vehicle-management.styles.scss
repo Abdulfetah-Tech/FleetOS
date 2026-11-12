@@ -1,4 +1,5 @@
-app-vehicle-management.vehicle-management {
+app-vehicle-management.vehicle-management,
+app-driver-management.driver-management {
   .vehicle-main {
   min-width: 0;
   padding: 27px clamp(20px, 3vw, 44px) 42px;
@@ -265,6 +266,85 @@ button:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+.driver-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.driver-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.3fr) minmax(130px, 1fr) minmax(145px, 1fr) minmax(100px, 0.7fr) minmax(200px, 1.3fr);
+  align-items: center;
+  gap: 16px;
+  min-height: 92px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.driver-identity,
+.driver-expiry,
+.driver-status {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.driver-identity strong,
+.driver-identity a,
+.driver-license dd {
+  overflow-wrap: anywhere;
+}
+
+.driver-identity a {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.driver-license {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.driver-license > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.driver-license dt,
+.driver-expiry > span,
+.driver-status > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.driver-license dt::after {
+  content: ':';
+}
+
+.driver-license dd {
+  margin: 0;
+}
+
+.driver-expiry strong,
+.driver-status strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.license-expired {
+  color: var(--critical);
+}
+
+.driver-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 7px;
+}
+
 .vehicle-actions {
   display: flex;
   flex-wrap: wrap;
@@ -341,7 +421,16 @@ button:disabled {
     grid-template-columns: minmax(150px, 1.2fr) minmax(150px, 1fr) minmax(100px, 0.7fr) minmax(100px, 0.7fr);
   }
 
+  .driver-row {
+    grid-template-columns: minmax(150px, 1.2fr) minmax(130px, 1fr) minmax(135px, 1fr) minmax(100px, 0.7fr);
+  }
+
   .vehicle-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .driver-actions {
     grid-column: 1 / -1;
     justify-content: flex-end;
   }
@@ -391,12 +480,24 @@ button:disabled {
     padding: 14px 0;
   }
 
+  .driver-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 14px;
+    padding: 14px 0;
+  }
+
   .vehicle-identity,
-  .vehicle-actions {
+  .vehicle-actions,
+  .driver-identity,
+  .driver-actions {
     grid-column: 1 / -1;
   }
 
   .vehicle-actions {
+    justify-content: flex-start;
+  }
+
+  .driver-actions {
     justify-content: flex-start;
   }
 

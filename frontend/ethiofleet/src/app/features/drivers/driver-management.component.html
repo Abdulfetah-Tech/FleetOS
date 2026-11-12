@@ -1,0 +1,159 @@
+<main class="vehicle-main" [attr.aria-busy]="loading()">
+  <header class="page-header">
+    <div>
+      <h1>Drivers</h1>
+      <p>Driver records and license readiness for your organization</p>
+    </div>
+    @if (isCompanyOwner()) {
+      <button class="primary-button" type="button" [disabled]="loading()" (click)="beginCreate()">Add driver</button>
+    }
+  </header>
+
+  @if (noticeMessage()) {
+    <p class="success-message" role="status">{{ noticeMessage() }}</p>
+  }
+  @if (errorMessage()) {
+    <section class="load-error" role="alert">
+      <p>{{ errorMessage() }}</p>
+      <button type="button" (click)="loadDrivers()" [disabled]="loading()">Try again</button>
+    </section>
+  }
+
+  @if (formOpen()) {
+    <section class="vehicle-form-section" aria-labelledby="driver-form-heading">
+      <div class="form-heading">
+        <h2 id="driver-form-heading">{{ editingDriverId() ? 'Edit driver' : 'Add a driver' }}</h2>
+        <button class="text-button" type="button" [disabled]="saving()" (click)="closeForm()">Cancel</button>
+      </div>
+      @if (formError()) {
+        <p class="form-error" role="alert">{{ formError() }}</p>
+      }
+      <form #driverForm="ngForm" (ngSubmit)="saveDriver()">
+        <div class="form-grid">
+          <label>
+            <span>Full name</span>
+            <input name="fullName" [(ngModel)]="form.fullName" maxlength="160" required autocomplete="name">
+          </label>
+          <label>
+            <span>Email</span>
+            <input name="email" type="email" [(ngModel)]="form.email" maxlength="254" required autocomplete="email">
+          </label>
+          <label>
+            <span>Phone number</span>
+            <input name="phoneNumber" type="tel" [(ngModel)]="form.phoneNumber" maxlength="32" required autocomplete="tel">
+          </label>
+          <label>
+            <span>License number</span>
+            <input name="licenseNumber" [(ngModel)]="form.licenseNumber" maxlength="40" required autocomplete="off">
+          </label>
+          <label>
+            <span>License category</span>
+            <input name="licenseCategory" [(ngModel)]="form.licenseCategory" maxlength="20" required autocomplete="off">
+          </label>
+          <label>
+            <span>License expiry date</span>
+            <input name="licenseExpiryDate" type="date" [(ngModel)]="form.licenseExpiryDate" required>
+          </label>
+          <label>
+            <span>Emergency contact name <span class="optional">(optional)</span></span>
+            <input name="emergencyContactName" [(ngModel)]="form.emergencyContactName" maxlength="160" autocomplete="off">
+          </label>
+          <label>
+            <span>Emergency contact phone <span class="optional">(optional)</span></span>
+            <input name="emergencyContactPhone" type="tel" [(ngModel)]="form.emergencyContactPhone" maxlength="32" autocomplete="off">
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="primary-button" type="submit" [disabled]="driverForm.invalid || saving() || loading()">
+            {{ saving() ? 'Saving…' : editingDriverId() ? 'Save changes' : 'Add driver' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  <section class="driver-list-section" aria-labelledby="driver-list-heading">
+    <div class="list-heading">
+      <h2 id="driver-list-heading">Driver records</h2>
+      <form class="search-form" role="search" (ngSubmit)="searchDrivers()">
+        <label class="visually-hidden" for="driver-search">Search drivers</label>
+        <input
+          id="driver-search"
+          name="search"
+          type="search"
+          maxlength="100"
+          placeholder="Name, email, phone, or license"
+          [ngModel]="searchText()"
+          (ngModelChange)="searchText.set($event)"
+        >
+        <button class="secondary-button" type="submit" [disabled]="loading()">Search</button>
+      </form>
+    </div>
+
+    @if (loading() && !driverPage()) {
+      <p class="loading-state" role="status">Loading driver records…</p>
+    } @else if (drivers().length > 0) {
+      <ul class="driver-list" aria-label="Drivers">
+        @for (driver of drivers(); track driver.id) {
+          <li class="driver-row">
+            <div class="driver-identity">
+              <strong>{{ driver.fullName }}</strong>
+              <a [href]="'mailto:' + driver.email">{{ driver.email }}</a>
+              <a [href]="'tel:' + driver.phoneNumber">{{ driver.phoneNumber }}</a>
+            </div>
+            <dl class="driver-license">
+              <div><dt>License</dt><dd>{{ driver.licenseNumber }}</dd></div>
+              <div><dt>Category</dt><dd>{{ driver.licenseCategory }}</dd></div>
+            </dl>
+            <div class="driver-expiry">
+              <span>Expires {{ formatLicenseExpiry(driver.licenseExpiryDate) }}</span>
+              <strong [class.license-expired]="driver.licenseExpired">
+                {{ driver.licenseExpired ? 'Expired' : 'Not expired' }}
+              </strong>
+            </div>
+            <div class="driver-status">
+              <span>Status</span>
+              <strong>{{ statusLabel(driver.status) }}</strong>
+            </div>
+            @if (isCompanyOwner()) {
+              <div class="driver-actions">
+                <label class="status-control">
+                  <span>Change status</span>
+                  <select #statusSelect [value]="statusDraft(driver)" (change)="setStatusDraft(driver, statusSelect.value)" [disabled]="loading() || busyDriverId() === driver.id" [attr.aria-label]="'Change status for ' + driver.fullName">
+                    @for (status of statuses; track status.value) {
+                      <option [value]="status.value">{{ status.label }}</option>
+                    }
+                  </select>
+                  <button class="secondary-button" type="button" [disabled]="loading() || busyDriverId() === driver.id || statusDraft(driver) === driver.status" (click)="updateStatus(driver)">
+                    {{ busyDriverId() === driver.id ? 'Updating…' : 'Update' }}
+                  </button>
+                </label>
+                <button class="text-button" type="button" [disabled]="loading() || busyDriverId() === driver.id" (click)="beginEdit(driver)">Edit</button>
+                <button class="text-button destructive-button" type="button" [disabled]="loading() || busyDriverId() === driver.id" (click)="deleteDriver(driver)">Remove</button>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+      <nav class="pagination" aria-label="Driver pages">
+        <span>{{ driverPage()?.totalCount }} {{ driverPage()?.totalCount === 1 ? 'driver' : 'drivers' }} · Page {{ page() }} of {{ totalPages() }}</span>
+        <div>
+          <button class="secondary-button" type="button" [disabled]="loading() || page() <= 1" (click)="goToPage(page() - 1)">Previous</button>
+          <button class="secondary-button" type="button" [disabled]="loading() || page() >= totalPages()" (click)="goToPage(page() + 1)">Next</button>
+        </div>
+      </nav>
+    } @else if (driverPage()) {
+      <div class="empty-state">
+        <h2>{{ searchText() ? 'No matching drivers' : 'No drivers recorded' }}</h2>
+        @if (searchText()) {
+          <p>Try a different name, email address, phone number, or license.</p>
+        } @else {
+          <p>Driver records will appear here once they are added to this organization.</p>
+          @if (isCompanyOwner()) {
+            <button class="primary-button" type="button" [disabled]="loading()" (click)="beginCreate()">Add the first driver</button>
+          }
+        }
+      </div>
+    }
+  </section>
+</main>

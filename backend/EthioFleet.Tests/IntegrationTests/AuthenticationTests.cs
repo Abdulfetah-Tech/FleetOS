@@ -876,6 +876,13 @@ public sealed class AuthenticationTests : IAsyncLifetime
         using var listJson = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
         Assert.Equal(1, listJson.RootElement.GetProperty("totalCount").GetInt32());
 
+        var excessiveSearch = await client.GetAsync($"/api/v1/drivers?search={new string('a', 101)}");
+        Assert.Equal(HttpStatusCode.BadRequest, excessiveSearch.StatusCode);
+
+        var missing = await client.GetAsync($"/api/v1/drivers/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        Assert.Equal("application/problem+json", missing.Content.Headers.ContentType?.MediaType);
+
         var inactive = await client.PatchAsJsonAsync($"/api/v1/drivers/{driverId}/status", new
         {
             status = DriverStatus.Inactive
@@ -906,7 +913,11 @@ public sealed class AuthenticationTests : IAsyncLifetime
             licenseCategory = "B",
             licenseExpiryDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1))
         };
-        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/v1/drivers", create)).StatusCode);
+        var created = await client.PostAsJsonAsync("/api/v1/drivers", create);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var createdJson = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        var driverId = createdJson.RootElement.GetProperty("id").GetGuid();
+
         var duplicateLicense = await client.PostAsJsonAsync("/api/v1/drivers", create with
         {
             fullName = "Driver Two",
@@ -914,6 +925,22 @@ public sealed class AuthenticationTests : IAsyncLifetime
             phoneNumber = "+251911000002"
         });
         Assert.Equal(HttpStatusCode.Conflict, duplicateLicense.StatusCode);
+        Assert.Equal("application/problem+json", duplicateLicense.Content.Headers.ContentType?.MediaType);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), tenantA, "FleetManager"));
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/v1/drivers", create with
+        {
+            fullName = "Driver Three",
+            email = "driver.three@example.test",
+            phoneNumber = "+251911000003",
+            licenseNumber = "LIC-67890"
+        })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PatchAsJsonAsync($"/api/v1/drivers/{driverId}/status", new
+        {
+            status = DriverStatus.Inactive
+        })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.DeleteAsync($"/api/v1/drivers/{driverId}")).StatusCode);
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "Bearer", CreateTestToken(Guid.NewGuid(), tenantB, "FleetManager"));

@@ -176,6 +176,23 @@
   .primary-nav {
     grid-column: 1 / -1;
     grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    gap: 4px;
+  }
+
+  .nav-link {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    gap: 6px;
+    padding: 8px 4px;
+    font-size: 14px;
+  }
+
+  .nav-icon {
+    width: 24px;
+    height: 24px;
   }
 
   .rail-account {

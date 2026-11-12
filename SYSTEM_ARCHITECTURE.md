@@ -24,7 +24,7 @@ flowchart LR
 - **`backend/EthioFleet.Domain`** owns entities, value objects, and business invariants without framework dependencies.
 - **`backend/EthioFleet.Infrastructure`** implements EF Core persistence, Identity/JWT services, the unconfigured email-sender boundary, filesystem document storage, reports, and background reminders.
 - **`backend/EthioFleet.Tests`** contains domain/audit unit tests and API/database integration tests.
-- **`frontend/ethiofleet`** is an Angular 22 SPA with guarded dashboard and vehicle routes, a shared authenticated workspace, and typed dashboard/vehicle API clients.
+- **`frontend/ethiofleet`** is an Angular 22 SPA with guarded dashboard, vehicle, and driver routes, a shared authenticated workspace, and typed API clients.
 
 ## Request and tenant flow
 
@@ -63,7 +63,7 @@ The target diagram is a direction, not a claim that those services are connected
 ## Known architectural gaps
 
 - Organization is the current tenant boundary; branch hierarchy and the complete role-to-operation permission model are absent.
-- Phase 4 is underway: vehicle listing/search, pagination, owner-only create/update/delete, and fleet-manager status changes are connected to the existing vehicle API. Driver, assignment, trip, fuel, and maintenance UI workflows remain.
+- Phase 4 is underway: vehicle management and driver directory workflows are connected to tenant-scoped APIs. Driver mutations follow the existing CompanyOwner policy; assignment, trip, fuel, and maintenance UI workflows remain.
 - Document storage is local disk and not appropriate for a horizontally scaled deployment.
 - Email confirmation/reset tokens depend on ASP.NET Core Data Protection keys; production must persist and share a protected key ring across restarts and API instances.
 - No production migration orchestration, secrets-vault configuration, backup/restore runbook, distributed work coordination, or monitoring export is configured.
