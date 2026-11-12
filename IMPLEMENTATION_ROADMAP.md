@@ -23,10 +23,14 @@ This roadmap extends the active codebase. Existing tested functionality should b
 
 ## Phase 3 — Frontend foundation
 
+**Status: Frontend foundation implemented; real-API browser acceptance remains pending.**
+
 - Establish configurable API origin, typed API client, auth/session behavior, route guards, and error/loading states.
 - Build responsive application navigation and login/registration flows against existing API contracts.
 - Add accessible design tokens and component-level tests.
-- **Acceptance:** browser login and authenticated navigation work against the real API; no mock-backed success path.
+- **Acceptance:** verify browser login and authenticated navigation against a configured real API; no mock-backed success path.
+
+The current dashboard foundation has unit coverage and responsive browser verification, but account activation and live API login remain unverified. The default email sender is intentionally unconfigured and returns HTTP 503 for registration and other email-dependent operations.
 
 ## Phase 4 — Core fleet operations
 

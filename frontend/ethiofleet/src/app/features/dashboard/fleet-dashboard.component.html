@@ -1,0 +1,171 @@
+<div class="workspace-shell">
+  <aside class="navigation-rail">
+    <a class="brand" routerLink="/dashboard">EthioFleet OS</a>
+    <nav class="primary-nav" aria-label="Primary navigation">
+      <a class="nav-link" routerLink="/dashboard" routerLinkActive="active" ariaCurrentWhenActive="page">
+        <span class="nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
+        </span>
+        Dashboard
+      </a>
+    </nav>
+    <div class="rail-account">
+      <div class="account-meta">
+        <span>Signed in as</span>
+        <strong>{{ authSessionEmail }}</strong>
+      </div>
+      <div class="account-actions">
+        <button
+          class="rail-button"
+          type="button"
+          [attr.aria-label]="theme.theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+          [attr.aria-pressed]="theme.theme() === 'dark'"
+          (click)="theme.toggle()"
+        >{{ theme.theme() === 'dark' ? 'Light mode' : 'Dark mode' }}</button>
+        <button class="rail-button" type="button" [disabled]="signingOut()" (click)="signOut()">
+          {{ signingOut() ? 'Signing out…' : 'Sign out' }}
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="dashboard-main" [attr.aria-busy]="loading()">
+    <header class="page-header">
+      <div>
+        <h1>Fleet overview</h1>
+        @if (dashboard(); as data) {
+          <p>As of {{ formatDate(data.asOfDate) }}</p>
+        } @else {
+          <p>Fleet readiness and upcoming work</p>
+        }
+      </div>
+      <button class="refresh-button" type="button" [disabled]="loading()" (click)="loadDashboard()">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.5 9a7 7 0 0 1 12-2L20 12M4 12l2.5 5a7 7 0 0 0 12-2"/></svg>
+        {{ loading() ? 'Loading…' : 'Refresh' }}
+      </button>
+    </header>
+
+    @if (errorMessage()) {
+      <section class="load-error" role="alert">
+        <p>{{ errorMessage() }}</p>
+        @if (dashboard(); as lastData) {
+          <p>Showing the last successful response, as of {{ formatDate(lastData.asOfDate) }}.</p>
+        }
+        <button type="button" (click)="loadDashboard()" [disabled]="loading()">Try again</button>
+      </section>
+    }
+
+    @if (loading() && !dashboard()) {
+      <p class="loading-state" role="status">Loading fleet data from your organization…</p>
+    } @else if (dashboard(); as data) {
+      <div class="dashboard-content">
+        <section class="attention-band" [class.attention-band--updated]="bandFlap()" aria-live="polite" aria-atomic="true">
+          <div>
+            @if (attentionCount() > 0) {
+              <h2>{{ attentionCount() }} {{ attentionCount() === 1 ? 'item' : 'items' }} need attention</h2>
+              <p>{{ data.dueMaintenance.length }} maintenance {{ data.dueMaintenance.length === 1 ? 'schedule is' : 'schedules are' }} overdue · {{ data.upcomingDocumentExpiries.length }} {{ data.upcomingDocumentExpiries.length === 1 ? 'document expires' : 'documents expire' }} within 30 days</p>
+            } @else {
+              <h2>No due maintenance or expiring documents</h2>
+              <p>No overdue maintenance or documents expiring within 30 days.</p>
+            }
+          </div>
+          @if (attentionCount() > 0) {
+            <a class="route-link" href="#due-work">
+              Review due work
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h13M10 4l6 6-6 6"/></svg>
+            </a>
+          }
+        </section>
+
+        <section class="fleet-section" aria-labelledby="fleet-status-heading">
+          <h2 class="section-title" id="fleet-status-heading">Fleet status</h2>
+          <div class="status-row">
+            <div class="metric"><strong>{{ formatNumber(data.totalVehicles) }}</strong><span>Total vehicles</span></div>
+            <div class="metric"><strong>{{ formatNumber(data.activeVehicles) }}</strong><span>Active</span></div>
+            <div class="metric"><strong>{{ formatNumber(data.availableVehicles) }}</strong><span>Available</span></div>
+            <div class="metric"><strong>{{ formatNumber(data.vehiclesInMaintenance) }}</strong><span>In maintenance</span></div>
+            <div class="metric"><strong>{{ formatNumber(data.tripsToday) }}</strong><span>Trips today</span></div>
+          </div>
+        </section>
+
+        @if (data.totalVehicles === 0) {
+          <p class="empty-note">No vehicles are recorded for this organization yet. Fleet totals will appear here when records are available.</p>
+        }
+
+        <div class="details-grid">
+          <section class="work-section" id="due-work" aria-labelledby="maintenance-heading">
+            <h2 class="section-title" id="maintenance-heading">Maintenance due</h2>
+            @if (data.dueMaintenance.length > 0) {
+              <ul class="work-list">
+                @for (schedule of data.dueMaintenance; track schedule.scheduleId) {
+                  <li class="work-row">
+                    <div class="work-copy">
+                      <strong>{{ schedule.plateNumber }} · {{ schedule.name }}</strong>
+                      <span>{{ maintenanceContext(schedule) }}</span>
+                    </div>
+                    <span class="state-label state-label--critical">Overdue</span>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="empty-note">No overdue maintenance schedules.</p>
+            }
+
+            <h2 class="section-title document-heading">Documents expiring</h2>
+            @if (data.upcomingDocumentExpiries.length > 0) {
+              <ul class="work-list">
+                @for (document of data.upcomingDocumentExpiries; track document.documentId) {
+                  <li class="work-row">
+                    <div class="work-copy">
+                      <strong>{{ document.plateNumber }} · {{ document.name }}</strong>
+                      <span>Expires {{ formatDate(document.expiresOn) }}</span>
+                    </div>
+                    <span
+                      class="state-label"
+                      [class.state-label--critical]="document.daysUntilExpiry <= 0"
+                      [class.state-label--warning]="document.daysUntilExpiry > 0"
+                    >{{ expiryLabel(document.daysUntilExpiry) }}</span>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="empty-note">No vehicle documents expire within 30 days.</p>
+            }
+          </section>
+
+          <aside class="context-section">
+            <section aria-labelledby="cost-heading">
+              <h2 class="section-title" id="cost-heading">Monthly operating costs</h2>
+              @if (data.monthlyCosts.length > 0) {
+                @for (cost of data.monthlyCosts; track cost.currencyCode) {
+                  <div class="currency-block">
+                    <h3>{{ cost.currencyCode }}</h3>
+                    <dl>
+                      <div><dt>Fuel</dt><dd>{{ formatMoney(cost.fuelCost, cost.currencyCode) }}</dd></div>
+                      <div><dt>Maintenance</dt><dd>{{ formatMoney(cost.maintenanceCost, cost.currencyCode) }}</dd></div>
+                      <div class="cost-total"><dt>Operating cost</dt><dd>{{ formatMoney(cost.operatingCost, cost.currencyCode) }}</dd></div>
+                    </dl>
+                  </div>
+                }
+              } @else {
+                <p class="empty-note">No fuel or maintenance costs are recorded for this month.</p>
+              }
+            </section>
+            <section class="operational-context" aria-labelledby="operations-heading">
+              <h2 class="section-title" id="operations-heading">Operations</h2>
+              <dl class="context-list">
+                <div><dt>Active drivers</dt><dd>{{ formatNumber(data.activeDrivers) }} / {{ formatNumber(data.totalDrivers) }}</dd></div>
+                <div><dt>Open incidents</dt><dd>{{ formatNumber(data.openIncidents) }}</dd></div>
+              </dl>
+            </section>
+          </aside>
+        </div>
+      </div>
+    } @else if (errorMessage()) {
+      <section class="empty-state">
+        <h2>Fleet data is unavailable</h2>
+        <p>Check the API connection and try loading the dashboard again.</p>
+      </section>
+    }
+  </main>
+</div>

@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-12T19:35:17.0356634+03:00",
+  "title": "Design System: EthioFleet OS",
+  "extensions": {
+    "colorMeta": {
+      "wayfinding-yellow": { "role": "primary", "displayName": "Wayfinding Yellow", "tonalRamp": ["oklch(15% 0.054 94.5)", "oklch(25% 0.091 94.5)", "oklch(35% 0.127 94.5)", "oklch(45% 0.163 94.5)", "oklch(55% 0.163 94.5)", "oklch(65% 0.127 94.5)", "oklch(78% 0.080 94.5)", "oklch(95% 0.018 94.5)"] },
+      "ink": { "role": "neutral", "displayName": "Ink Black", "tonalRamp": ["oklch(15% 0.000 89.9)", "oklch(25% 0.000 89.9)", "oklch(35% 0.000 89.9)", "oklch(45% 0.000 89.9)", "oklch(55% 0.000 89.9)", "oklch(65% 0.000 89.9)", "oklch(78% 0.000 89.9)", "oklch(95% 0.000 89.9)"] },
+      "page": { "role": "neutral", "displayName": "Cool Paper", "tonalRamp": ["oklch(15% 0.002 115.7)", "oklch(25% 0.003 115.7)", "oklch(35% 0.005 115.7)", "oklch(45% 0.006 115.7)", "oklch(55% 0.006 115.7)", "oklch(65% 0.005 115.7)", "oklch(78% 0.003 115.7)", "oklch(95% 0.001 115.7)"] },
+      "surface": { "role": "neutral", "displayName": "Signal White", "tonalRamp": ["oklch(15% 0.000 89.9)", "oklch(25% 0.000 89.9)", "oklch(35% 0.000 89.9)", "oklch(45% 0.000 89.9)", "oklch(55% 0.000 89.9)", "oklch(65% 0.000 89.9)", "oklch(78% 0.000 89.9)", "oklch(95% 0.000 89.9)"] },
+      "line": { "role": "neutral", "displayName": "Divider Gray", "tonalRamp": ["oklch(15% 0.003 128.6)", "oklch(25% 0.004 128.6)", "oklch(35% 0.006 128.6)", "oklch(45% 0.008 128.6)", "oklch(55% 0.008 128.6)", "oklch(65% 0.006 128.6)", "oklch(78% 0.004 128.6)", "oklch(95% 0.001 128.6)"] },
+      "muted": { "role": "neutral", "displayName": "Operational Slate", "tonalRamp": ["oklch(15% 0.003 164.5)", "oklch(25% 0.005 164.5)", "oklch(35% 0.006 164.5)", "oklch(45% 0.008 164.5)", "oklch(55% 0.008 164.5)", "oklch(65% 0.006 164.5)", "oklch(78% 0.004 164.5)", "oklch(95% 0.001 164.5)"] },
+      "focus": { "role": "secondary", "displayName": "Focus Blue", "tonalRamp": ["oklch(15% 0.065 264.4)", "oklch(25% 0.109 264.4)", "oklch(35% 0.152 264.4)", "oklch(45% 0.195 264.4)", "oklch(55% 0.195 264.4)", "oklch(65% 0.152 264.4)", "oklch(78% 0.096 264.4)", "oklch(95% 0.022 264.4)"] },
+      "good": { "role": "positive", "displayName": "Confirmed Green", "tonalRamp": ["oklch(15% 0.026 163.1)", "oklch(25% 0.044 163.1)", "oklch(35% 0.061 163.1)", "oklch(45% 0.079 163.1)", "oklch(55% 0.079 163.1)", "oklch(65% 0.061 163.1)", "oklch(78% 0.038 163.1)", "oklch(95% 0.009 163.1)"] },
+      "warn": { "role": "warning", "displayName": "Service Ochre", "tonalRamp": ["oklch(15% 0.035 52.5)", "oklch(25% 0.058 52.5)", "oklch(35% 0.081 52.5)", "oklch(45% 0.105 52.5)", "oklch(55% 0.105 52.5)", "oklch(65% 0.081 52.5)", "oklch(78% 0.051 52.5)", "oklch(95% 0.012 52.5)"] },
+      "critical": { "role": "critical", "displayName": "Critical Red", "tonalRamp": ["oklch(15% 0.050 26.6)", "oklch(25% 0.083 26.6)", "oklch(35% 0.117 26.6)", "oklch(45% 0.150 26.6)", "oklch(55% 0.150 26.6)", "oklch(65% 0.117 26.6)", "oklch(78% 0.073 26.6)", "oklch(95% 0.017 26.6)"] },
+      "dark-ink": { "role": "neutral", "displayName": "Dark Theme Ink", "tonalRamp": ["oklch(15% 0.002 106.5)", "oklch(25% 0.003 106.5)", "oklch(35% 0.005 106.5)", "oklch(45% 0.006 106.5)", "oklch(55% 0.006 106.5)", "oklch(65% 0.005 106.5)", "oklch(78% 0.003 106.5)", "oklch(95% 0.001 106.5)"] },
+      "dark-page": { "role": "neutral", "displayName": "Night Shift", "tonalRamp": ["oklch(15% 0.002 214.4)", "oklch(25% 0.003 214.4)", "oklch(35% 0.004 214.4)", "oklch(45% 0.006 214.4)", "oklch(55% 0.006 214.4)", "oklch(65% 0.004 214.4)", "oklch(78% 0.003 214.4)", "oklch(95% 0.001 214.4)"] },
+      "dark-surface": { "role": "neutral", "displayName": "Dark Surface", "tonalRamp": ["oklch(15% 0.003 208.7)", "oklch(25% 0.004 208.7)", "oklch(35% 0.006 208.7)", "oklch(45% 0.008 208.7)", "oklch(55% 0.008 208.7)", "oklch(65% 0.006 208.7)", "oklch(78% 0.004 208.7)", "oklch(95% 0.001 208.7)"] },
+      "dark-line": { "role": "neutral", "displayName": "Dark Divider", "tonalRamp": ["oklch(15% 0.004 211.1)", "oklch(25% 0.007 211.1)", "oklch(35% 0.009 211.1)", "oklch(45% 0.012 211.1)", "oklch(55% 0.012 211.1)", "oklch(65% 0.009 211.1)", "oklch(78% 0.006 211.1)", "oklch(95% 0.001 211.1)"] },
+      "dark-muted": { "role": "neutral", "displayName": "Dark Muted Text", "tonalRamp": ["oklch(15% 0.003 171.7)", "oklch(25% 0.005 171.7)", "oklch(35% 0.007 171.7)", "oklch(45% 0.009 171.7)", "oklch(55% 0.009 171.7)", "oklch(65% 0.007 171.7)", "oklch(78% 0.004 171.7)", "oklch(95% 0.001 171.7)"] },
+      "dark-focus": { "role": "secondary", "displayName": "Dark Focus Blue", "tonalRamp": ["oklch(15% 0.026 262.7)", "oklch(25% 0.043 262.7)", "oklch(35% 0.060 262.7)", "oklch(45% 0.077 262.7)", "oklch(55% 0.077 262.7)", "oklch(65% 0.060 262.7)", "oklch(78% 0.038 262.7)", "oklch(95% 0.009 262.7)"] },
+      "dark-good": { "role": "positive", "displayName": "Dark Confirmed Green", "tonalRamp": ["oklch(15% 0.032 157.8)", "oklch(25% 0.053 157.8)", "oklch(35% 0.074 157.8)", "oklch(45% 0.096 157.8)", "oklch(55% 0.096 157.8)", "oklch(65% 0.074 157.8)", "oklch(78% 0.047 157.8)", "oklch(95% 0.011 157.8)"] },
+      "dark-warn": { "role": "warning", "displayName": "Dark Service Amber", "tonalRamp": ["oklch(15% 0.034 69.0)", "oklch(25% 0.057 69.0)", "oklch(35% 0.080 69.0)", "oklch(45% 0.103 69.0)", "oklch(55% 0.103 69.0)", "oklch(65% 0.080 69.0)", "oklch(78% 0.051 69.0)", "oklch(95% 0.011 69.0)"] },
+      "dark-critical": { "role": "critical", "displayName": "Dark Critical Red", "tonalRamp": ["oklch(15% 0.037 24.5)", "oklch(25% 0.061 24.5)", "oklch(35% 0.086 24.5)", "oklch(45% 0.110 24.5)", "oklch(55% 0.110 24.5)", "oklch(65% 0.086 24.5)", "oklch(78% 0.054 24.5)", "oklch(95% 0.012 24.5)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Sign Headline", "purpose": "Authentication statement and high-salience totals." },
+      "body": { "displayName": "Operational Sans", "purpose": "Forms, labels, dashboard detail, and reading copy." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "attention-refresh", "value": "240ms steps(2, end)", "purpose": "A brief sign-like flap marks a fresh dashboard response." }
+    ],
+    "breakpoints": [
+      { "name": "mobile-dashboard", "value": "640px" },
+      { "name": "compact-dashboard", "value": "900px" },
+      { "name": "authentication-stack", "value": "760px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Form Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Full-width sign-yellow form action with an explicit verb.",
+      "html": "<button class=\"ds-primary-button\" type=\"button\">Sign in</button>",
+      "css": ".ds-primary-button { width: 100%; min-height: 48px; border: 1px solid #111111; border-radius: 3px; padding: 10px 15px; background: var(--sign-yellow); color: #111111; font: 700 16px/1.45 'Source Sans 3', Arial, sans-serif; cursor: pointer; } .ds-primary-button:hover:not(:disabled) { background: #111111; color: var(--sign-yellow); } .ds-primary-button:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; } .ds-primary-button:disabled { cursor: wait; opacity: 0.7; }"
+    },
+    {
+      "name": "Rail Action Button",
+      "kind": "button",
+      "refersTo": "button-rail",
+      "description": "Outlined account action that reverses to ink on hover.",
+      "html": "<button class=\"ds-rail-button\" type=\"button\">Sign out</button>",
+      "css": ".ds-rail-button { min-height: 36px; border: 1px solid #111111; border-radius: 3px; padding: 6px 9px; background: transparent; color: #111111; font: 650 13px/1.45 'Source Sans 3', Arial, sans-serif; cursor: pointer; } .ds-rail-button:hover { background: #111111; color: #ffffff; } .ds-rail-button:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; } .ds-rail-button:disabled { cursor: wait; opacity: 0.65; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Labeled field with an explicit focus border and keyboard ring.",
+      "html": "<label class=\"ds-field\"><span>Email address</span><input type=\"email\" value=\"manager@example.com\"></label>",
+      "css": ".ds-field { display: grid; gap: 6px; color: var(--ink); font: 650 16px/1.45 'Source Sans 3', Arial, sans-serif; } .ds-field input { width: 100%; min-height: 46px; border: 1px solid var(--line); border-radius: 3px; padding: 9px 11px; background: var(--surface); color: var(--ink); font: 400 16px/1.45 'Source Sans 3', Arial, sans-serif; } .ds-field input:hover:not(:focus-visible) { border-color: var(--muted); } .ds-field input:focus-visible { border-color: var(--focus); outline: 3px solid var(--focus); outline-offset: 2px; }"
+    },
+    {
+      "name": "Primary Navigation Item",
+      "kind": "nav",
+      "refersTo": "button-rail",
+      "description": "Functional destination with a compact pictogram inset and white active surface.",
+      "html": "<a class=\"ds-nav-link ds-nav-link-active\" href=\"#dashboard\"><span class=\"ds-nav-icon\" aria-hidden=\"true\"><svg viewBox=\"0 0 24 24\"><path d=\"m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z\"/></svg></span>Dashboard</a>",
+      "css": ".ds-nav-link { display: inline-flex; min-height: 44px; align-items: center; gap: 10px; border-radius: 3px; padding: 8px 10px; color: #111111; font: 650 16px/1.45 'Source Sans 3', Arial, sans-serif; text-decoration: none; } .ds-nav-link:not(.ds-nav-link-active):hover { background: rgba(17,17,17,0.12); } .ds-nav-link:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; } .ds-nav-link-active { background: #ffffff; } .ds-nav-icon { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 3px; background: #111111; color: #ffffff; } .ds-nav-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; }"
+    },
+    {
+      "name": "Attention Band",
+      "kind": "custom",
+      "refersTo": "button-primary",
+      "description": "One sign-yellow callout counts due work and points directly to its list.",
+      "html": "<section class=\"ds-attention\"><div><strong>2 items need attention</strong><p>1 maintenance schedule is overdue · 1 document expires within 30 days</p></div><a href=\"#due-work\">Review due work <span aria-hidden=\"true\">→</span></a></section>",
+      "css": ".ds-attention { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 64px; padding: 11px 16px; background: var(--sign-yellow); color: #111111; } .ds-attention strong { font: 700 18px/1.2 'Source Sans 3', Arial, sans-serif; } .ds-attention p { margin: 3px 0 0; font: 400 14px/1.45 'Source Sans 3', Arial, sans-serif; } .ds-attention a { display: inline-flex; min-height: 38px; align-items: center; gap: 7px; border: 1px solid #111111; border-radius: 2px; padding: 6px 10px; color: #111111; font: 700 16px/1.45 'Source Sans 3', Arial, sans-serif; text-decoration: none; } .ds-attention a:hover { background: #111111; color: #ffffff; } .ds-attention a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }"
+    },
+    {
+      "name": "Fleet Status Strip",
+      "kind": "custom",
+      "refersTo": "input",
+      "description": "A continuous five-column strip keeps fleet totals compact without separate cards.",
+      "html": "<div class=\"ds-status\"><div><strong>64</strong><span>Total vehicles</span></div><div><strong>52</strong><span>Active</span></div><div><strong>8</strong><span>Available</span></div></div>",
+      "css": ".ds-status { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-block: 1px solid var(--line); background: var(--surface); color: var(--ink); } .ds-status > div { min-width: 0; padding: 12px 14px; border-right: 1px solid var(--line); } .ds-status > div:last-child { border-right: 0; } .ds-status strong { display: block; font: 700 27px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; font-variant-numeric: tabular-nums; } .ds-status span { display: block; margin-top: 5px; color: var(--muted); font: 400 13px/1.45 'Source Sans 3', Arial, sans-serif; }"
+    },
+    {
+      "name": "Due Work Row",
+      "kind": "custom",
+      "refersTo": "input",
+      "description": "Readable operational detail with a text status and restrained urgency color.",
+      "html": "<div class=\"ds-work-row\"><div><strong>ET-0148 · Oil and filter service</strong><span>Due Nov 10, 2026 · 48,320 km current / 48,000 km due</span></div><span class=\"ds-critical\">Overdue</span></div>",
+      "css": ".ds-work-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 62px; padding: 10px 2px; border-bottom: 1px solid var(--line); color: var(--ink); } .ds-work-row > div { display: grid; min-width: 0; gap: 2px; } .ds-work-row strong { overflow-wrap: anywhere; font: 650 16px/1.45 'Source Sans 3', Arial, sans-serif; } .ds-work-row span { color: var(--muted); font: 400 14px/1.45 'Source Sans 3', Arial, sans-serif; } .ds-work-row .ds-critical { color: var(--critical); font: 700 13px/1.45 'Source Sans 3', Arial, sans-serif; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Fleet Wayfinding",
+    "overview": "Fleet Wayfinding makes the next operational decision easy to locate. The visual language borrows the direct hierarchy of international airport signs: a saturated yellow navigation rail, one action band for due work, compact white pictograms in black insets, and clear high-contrast type. The mood is precise, direct, and operational; controls feel tactile and confident without turning the dashboard into a stack of decorative cards.\n\nThe interface supports fleet managers and operations leads who need to scan readiness, overdue work, and cost context quickly. Yellow is reserved for wayfinding and the next action. Maintenance and document states use explicit text alongside restrained status color. The light and dark themes share the same structure and preserve the yellow sign system.",
+    "keyCharacteristics": [
+      "A single yellow navigation rail and one next-action band establish orientation.",
+      "Fleet measures use a compact strip; operational work stays in readable rows.",
+      "Borders and spacing provide hierarchy instead of shadows or nested cards.",
+      "Every live operational value comes from the API; no simulated GPS or demo records are implied."
+    ],
+    "rules": [
+      { "name": "The One Yellow Rule", "body": "Yellow marks wayfinding and the next action; do not spread it across unrelated metrics or status labels.", "section": "colors" },
+      { "name": "The Sign-First Rule", "body": "Headings carry the hierarchy; do not add decorative eyebrow labels or uppercase section numbering.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Do not add shadows to dashboard containers; use the existing surface and divider vocabulary.", "section": "elevation" }
+    ],
+    "dos": [
+      "Keep the yellow sign system singular and purposeful.",
+      "Use real API values, explicit currency codes, and visible data dates.",
+      "Preserve semantic headings, visible focus, and text status labels.",
+      "Keep loading, error, empty, and disabled states explicit."
+    ],
+    "donts": [
+      "Do not imply live GPS, integrations, or sample data are operational facts.",
+      "Do not turn the page into a grid of interchangeable KPI cards.",
+      "Do not use color alone to communicate urgency.",
+      "Do not add ornamental gradients, heavy shadows, or decorative badges."
+    ]
+  }
+}

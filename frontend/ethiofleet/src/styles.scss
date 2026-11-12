@@ -1,1 +1,336 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  color-scheme: light;
+  --sign-yellow: #ffd500;
+  --ink: #111111;
+  --page: #f3f4ef;
+  --surface: #ffffff;
+  --line: #c8cbc5;
+  --muted: #454b48;
+  --focus: #1d4ed8;
+  --good: #176447;
+  --warn: #874000;
+  --critical: #a32020;
+  font-family: "Source Sans 3", Arial, sans-serif;
+  color: var(--ink);
+  background: var(--page);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #f4f4ef;
+  --page: #171b1c;
+  --surface: #202627;
+  --line: #465052;
+  --muted: #bdc5c2;
+  --focus: #a9c7ff;
+  --good: #8de0b0;
+  --warn: #ffc078;
+  --critical: #ff9a93;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--page);
+  scrollbar-color: var(--muted) var(--page);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+app-fleet-dashboard {
+  display: block;
+  min-height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+  text-underline-offset: 0.18em;
+}
+
+button {
+  color: inherit;
+}
+
+input {
+  caret-color: var(--ink);
+}
+
+::selection {
+  background: var(--sign-yellow);
+  color: #111111;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.context-section dl,
+.context-list {
+  margin: 0;
+}
+
+.currency-block {
+  padding-top: 9px;
+}
+
+.currency-block h3 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.currency-block dl > div,
+.context-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.currency-block dt,
+.context-list dt {
+  color: var(--muted);
+}
+
+.currency-block dd,
+.context-list dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.currency-block .cost-total {
+  border-top: 1px solid var(--ink);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.operational-context {
+  margin-top: 24px;
+}
+
+.empty-note {
+  margin: 12px 0 18px;
+  color: var(--muted);
+}
+
+.loading-state,
+.empty-state {
+  margin: 24px 0;
+  padding: 18px 0;
+}
+
+.empty-state h2 {
+  margin: 0 0 5px;
+  font-size: 21px;
+}
+
+.empty-state p {
+  color: var(--muted);
+}
+
+.load-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  margin: 0 0 18px;
+  border: 1px solid var(--critical);
+  padding: 12px 14px;
+  color: var(--critical);
+}
+
+.load-error p:first-child {
+  font-weight: 650;
+}
+
+.load-error button {
+  margin-left: auto;
+  border-color: var(--critical);
+  color: var(--critical);
+}
+
+app-fleet-dashboard.fleet-dashboard .nav-link:not(.active):hover {
+  background: rgba(17, 17, 17, 0.12);
+}
+
+app-fleet-dashboard.fleet-dashboard .refresh-button:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--surface);
+}
+
+@keyframes sign-flap {
+  0% { transform: perspective(420px) rotateX(-8deg); filter: brightness(1.12); }
+  100% { transform: perspective(420px) rotateX(0); filter: brightness(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (max-width: 900px) {
+  app-fleet-dashboard.fleet-dashboard .workspace-shell {
+    grid-template-columns: 1fr;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .navigation-rail {
+    display: grid;
+    grid-template-columns: minmax(130px, auto) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    min-height: 68px;
+    padding: 10px 20px;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .brand {
+    padding: 0;
+    border: 0;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .primary-nav {
+    display: flex;
+    margin: 0;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .rail-account {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .account-meta {
+    display: none;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .dashboard-main {
+    padding: 23px 24px 36px;
+  }
+}
+
+@media (max-width: 640px) {
+  app-fleet-dashboard.fleet-dashboard .navigation-rail {
+    grid-template-columns: 1fr auto;
+    gap: 8px 14px;
+    padding: 10px 15px;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .primary-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .rail-account {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: flex-end;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .rail-button {
+    min-height: 34px;
+    padding: 5px 7px;
+    font-size: 12px;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .dashboard-main {
+    padding: 20px 16px 30px;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .page-header {
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .page-header p {
+    font-size: 14px;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .refresh-button {
+    min-width: 40px;
+    padding: 7px 9px;
+    font-size: 0;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .refresh-button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .attention-band {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .attention-band p {
+    font-size: 13px;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .status-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  app-fleet-dashboard.fleet-dashboard .metric {
+    border-bottom: 1px solid var(--line);
+  }
+
+  app-fleet-dashboard.fleet-dashboard .metric:nth-child(2n) {
+    border-right: 0;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .metric:last-child {
+    border-bottom: 0;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .details-grid {
+    grid-template-columns: 1fr;
+    gap: 27px;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .work-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    padding: 11px 2px;
+  }
+
+  app-fleet-dashboard.fleet-dashboard .state-label {
+    max-width: none;
+    text-align: left;
+  }
+}

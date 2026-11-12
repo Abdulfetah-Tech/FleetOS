@@ -1,0 +1,75 @@
+<main class="auth-page">
+  <section class="auth-sign">
+    <a class="auth-brand" routerLink="/register">EthioFleet OS</a>
+    <div class="sign-message">
+      <h1>Fleet operations, clearly in view.</h1>
+      <p>One workspace for fleet managers and operations teams.</p>
+    </div>
+    <div class="sign-footer">Ethiopia-first fleet management</div>
+  </section>
+
+  <section class="auth-main" aria-labelledby="registration-heading">
+    <div class="auth-tools">
+      <button
+        class="text-button"
+        type="button"
+        [attr.aria-label]="theme.theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+        [attr.aria-pressed]="theme.theme() === 'dark'"
+        (click)="theme.toggle()"
+      >{{ theme.theme() === 'dark' ? 'Light mode' : 'Dark mode' }}</button>
+    </div>
+    <div class="auth-form-wrap">
+      <h2 id="registration-heading">Create your organization</h2>
+      <p class="form-intro">The first account is an organization administrator.</p>
+
+      @if (accepted(); as response) {
+        <div class="form-notice" role="status">
+          <p>{{ response.message }}</p>
+          <p class="accepted-note">Email confirmation is required before sign-in.</p>
+        </div>
+      } @else {
+        @if (errorMessage()) {
+          <p class="form-error" role="alert">{{ errorMessage() }}</p>
+        }
+
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <div class="field">
+            <label for="organization-name">Organization name</label>
+            <input id="organization-name" formControlName="organizationName" autocomplete="organization" required>
+            @if (form.controls.organizationName.touched && form.controls.organizationName.invalid) {
+              <span class="field-error">Enter your organization name.</span>
+            }
+          </div>
+          <div class="field">
+            <label for="register-username">Your name</label>
+            <input id="register-username" formControlName="userName" autocomplete="name" required>
+            @if (form.controls.userName.touched && form.controls.userName.invalid) {
+              <span class="field-error">Enter your name.</span>
+            }
+          </div>
+          <div class="field">
+            <label for="register-email">Email address</label>
+            <input id="register-email" type="email" formControlName="email" autocomplete="email" required>
+            @if (form.controls.email.touched && form.controls.email.hasError('required')) {
+              <span class="field-error">Enter your email address.</span>
+            } @else if (form.controls.email.touched && form.controls.email.hasError('email')) {
+              <span class="field-error">Enter a valid email address.</span>
+            }
+          </div>
+          <div class="field">
+            <label for="register-password">Password</label>
+            <input id="register-password" type="password" formControlName="password" autocomplete="new-password" required>
+            @if (form.controls.password.touched && form.controls.password.invalid) {
+              <span class="field-error">Enter a password.</span>
+            }
+          </div>
+          <button class="submit-button" type="submit" [disabled]="pending()">
+            {{ pending() ? 'Submitting…' : 'Create account' }}
+          </button>
+        </form>
+      }
+
+      <p class="auth-switch">Already have an account? <a routerLink="/login">Sign in</a></p>
+    </div>
+  </section>
+</main>

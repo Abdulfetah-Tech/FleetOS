@@ -59,3 +59,31 @@ Continue Phase 2 with authorization grants, branch scoping, immutable audit even
 ### Next
 
 Complete the role-to-operation matrix and authorization tests, then implement the approved branch and audit-log model.
+
+## Phase 3 — Frontend foundation
+
+**Status:** Implemented; live-API browser acceptance remains pending.
+
+### Completed in this slice
+
+- Added runtime API-origin configuration, typed auth and dashboard clients, login and registration routes, route protection, access-token refresh, logout, and light/dark theme switching.
+- Replaced the health-only shell with a fleet-readiness dashboard using the tenant-scoped dashboard API. It shows fleet totals, overdue maintenance, documents expiring within 30 days, currency-grouped monthly costs, active drivers, trips, and open incidents.
+- Kept loading, empty, API-error, and unconfigured-email states explicit; no demo records or simulated GPS are presented as live.
+- Added responsive navigation and layout rules, an approved Fleet Wayfinding design brief, and the shipped design-system documentation.
+
+### Verification
+
+- Angular tests: 6 passed across 4 test files.
+- Angular production build: passed with no warnings.
+- Browser flow with intercepted API responses: registration's expected 503 error, sign-in, and dashboard data rendering verified; responsive layout checked at 390px, 768px, and 1440px in light and dark themes with no horizontal overflow.
+- A mobile breakpoint specificity issue found in browser review was corrected and rechecked.
+
+### Outstanding
+
+- Verify login and authenticated navigation against a running API and a real, email-confirmed account. The default email sender is unconfigured, so registration cannot complete until a provider is configured.
+- Validate the dashboard against tenant data in the integration environment; browser fixture responses were intercepted and are not application seed data.
+- Continue with fleet operation workflows after Phase 2 authorization, branch-scoping, and migration requirements are resolved.
+
+### Next
+
+Configure an email provider and test the frontend against the real API with a verified account, then begin the approved vehicle and driver workflows.

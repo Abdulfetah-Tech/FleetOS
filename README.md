@@ -72,6 +72,8 @@ The solution remains at the repository root. References point inward: API -> App
    npm start --prefix .\frontend\ethiofleet
    ```
 
+   The frontend reads its API origin from `frontend/ethiofleet/public/runtime-config.js` at runtime. The default is `http://localhost:5062/api/v1`; deployments should set this file to the API's `/api/v1` base URL. The dashboard uses the tenant-scoped `GET /dashboard/fleet` endpoint. Registration and email-dependent account recovery return `503 Service Unavailable` until an email sender is configured.
+
 ## API endpoints
 
 - `GET /health/live` — process liveness.

@@ -1,0 +1,57 @@
+<main class="auth-page">
+  <section class="auth-sign">
+    <a class="auth-brand" routerLink="/login">EthioFleet OS</a>
+    <div class="sign-message">
+      <h1>Fleet operations, clearly in view.</h1>
+      <p>One workspace for fleet managers and operations teams.</p>
+    </div>
+    <div class="sign-footer">Ethiopia-first fleet management</div>
+  </section>
+
+  <section class="auth-main" aria-labelledby="login-heading">
+    <div class="auth-tools">
+      <button
+        class="text-button"
+        type="button"
+        [attr.aria-label]="theme.theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+        [attr.aria-pressed]="theme.theme() === 'dark'"
+        (click)="theme.toggle()"
+      >{{ theme.theme() === 'dark' ? 'Light mode' : 'Dark mode' }}</button>
+    </div>
+    <div class="auth-form-wrap">
+      <h2 id="login-heading">Sign in</h2>
+      <p class="form-intro">Use your verified EthioFleet account.</p>
+
+      @if (notice()) {
+        <p class="form-notice" role="status">{{ notice() }}</p>
+      }
+      @if (errorMessage()) {
+        <p class="form-error" role="alert">{{ errorMessage() }}</p>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="field">
+          <label for="login-email">Email address</label>
+          <input id="login-email" type="email" formControlName="email" autocomplete="username" required>
+          @if (form.controls.email.touched && form.controls.email.hasError('required')) {
+            <span class="field-error">Enter your email address.</span>
+          } @else if (form.controls.email.touched && form.controls.email.hasError('email')) {
+            <span class="field-error">Enter a valid email address.</span>
+          }
+        </div>
+        <div class="field">
+          <label for="login-password">Password</label>
+          <input id="login-password" type="password" formControlName="password" autocomplete="current-password" required>
+          @if (form.controls.password.touched && form.controls.password.invalid) {
+            <span class="field-error">Enter your password.</span>
+          }
+        </div>
+        <button class="submit-button" type="submit" [disabled]="pending()">
+          {{ pending() ? 'Signing in…' : 'Sign in' }}
+        </button>
+      </form>
+
+      <p class="auth-switch">New to EthioFleet? <a routerLink="/register">Create an account</a></p>
+    </div>
+  </section>
+</main>
