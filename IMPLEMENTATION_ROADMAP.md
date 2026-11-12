@@ -34,9 +34,9 @@ The current dashboard foundation has unit coverage and responsive browser verifi
 
 ## Phase 4 — Core fleet operations
 
-**Status: In progress; vehicle, driver, and vehicle assignment workflows are connected.**
+**Status: In progress; vehicle, driver, assignment, and trip workflows are connected.**
 
-- Connect existing vehicle, driver, assignment, trip, fuel, and maintenance APIs to functional UI workflows. Vehicle and driver directory operations and inline vehicle assignment are connected.
+- Connect existing vehicle, driver, assignment, trip, fuel, and maintenance APIs to functional UI workflows. Vehicle and driver directory operations, inline vehicle assignment, trip scheduling, and trip lifecycle actions are connected.
 - Complete dispatch, trip delivery evidence, document/insurance views, and pagination/filter needs.
 - Add missing validation and authorization cases based on agreed operations.
 - **Acceptance:** administrator-to-trip workflow uses persisted data and is covered by integration/e2e tests.

@@ -1,0 +1,437 @@
+<main class="vehicle-main" [attr.aria-busy]="loading()">
+  <header class="page-header">
+    <div>
+      <h1>Trips</h1>
+      <p>Schedule and track fleet journeys</p>
+    </div>
+    @if (isCompanyOwner()) {
+      <button
+        class="primary-button"
+        type="button"
+        [disabled]="loading() || saving()"
+        (click)="beginCreate()"
+      >
+        Schedule trip
+      </button>
+    }
+  </header>
+
+  @if (noticeMessage()) {
+    <p class="success-message" role="status">{{ noticeMessage() }}</p>
+  }
+  @if (errorMessage()) {
+    <section class="load-error" role="alert">
+      <p>{{ errorMessage() }}</p>
+      <button type="button" (click)="loadTrips()" [disabled]="loading()">Try again</button>
+    </section>
+  }
+
+  @if (formOpen()) {
+    <section class="vehicle-form-section" aria-labelledby="trip-form-heading">
+      <div class="form-heading">
+        <h2 id="trip-form-heading">Schedule a trip</h2>
+        <button class="text-button" type="button" [disabled]="saving()" (click)="closeForm()">
+          Cancel
+        </button>
+      </div>
+      @if (formError()) {
+        <p class="form-error" role="alert">{{ formError() }}</p>
+      }
+      <form #tripForm="ngForm" (ngSubmit)="createTrip()">
+        <fieldset class="trip-vehicle-picker" [disabled]="saving()">
+          <legend>Vehicle and assignment</legend>
+          <p class="form-note">
+            Trips use the vehicle’s current active driver assignment. Search and choose an active
+            vehicle.
+          </p>
+          <div class="search-form trip-vehicle-search" role="search">
+            <label class="visually-hidden" for="trip-vehicle-search">Search active vehicles</label>
+            <input
+              id="trip-vehicle-search"
+              name="vehicleSearch"
+              type="search"
+              maxlength="100"
+              placeholder="Plate, make, or model"
+              [ngModel]="vehicleSearchText()"
+              (ngModelChange)="vehicleSearchText.set($event)"
+              (keydown.enter)="$event.preventDefault(); searchVehicles()"
+            />
+            <button
+              class="secondary-button"
+              type="button"
+              [disabled]="vehicleChoicesLoading()"
+              (click)="searchVehicles()"
+            >
+              Search vehicles
+            </button>
+          </div>
+          @if (vehicleSearchError()) {
+            <p class="form-error" role="alert">{{ vehicleSearchError() }}</p>
+            <button
+              class="secondary-button"
+              type="button"
+              [disabled]="vehicleChoicesLoading()"
+              (click)="searchVehicles()"
+            >
+              Retry vehicle search
+            </button>
+          }
+          @if (vehicleChoicesLoading() && !vehiclePage()) {
+            <p class="loading-state" role="status">Loading vehicle choices…</p>
+          } @else if (vehiclePage()) {
+            @if (activeVehicles().length > 0) {
+              <label class="trip-vehicle-select">
+                <span>Active vehicle</span>
+                <select
+                  [ngModel]="selectedVehicleId()"
+                  (ngModelChange)="selectVehicle($event)"
+                  name="tripVehicle"
+                  required
+                  [disabled]="assignmentLoading() || saving()"
+                >
+                  <option value="">Choose a vehicle</option>
+                  @for (vehicle of activeVehicles(); track vehicle.id) {
+                    <option [value]="vehicle.id">
+                      {{ vehicle.plateNumber }} · {{ vehicle.year }} {{ vehicle.make }}
+                      {{ vehicle.model }}
+                    </option>
+                  }
+                </select>
+              </label>
+            } @else {
+              <p class="trip-empty-note">
+                No active vehicles matched. Search by plate, make, or model.
+              </p>
+            }
+            @if (vehiclePage()!.totalCount > pageSize) {
+              <nav class="pagination trip-vehicle-pagination" aria-label="Vehicle search pages">
+                <span>{{ vehiclePage()!.totalCount }} vehicles · {{ candidatePageLabel() }}</span>
+                <div>
+                  <button
+                    class="secondary-button"
+                    type="button"
+                    [disabled]="vehicleChoicesLoading() || vehiclePage()!.page <= 1"
+                    (click)="goToVehiclePage(vehiclePage()!.page - 1)"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    class="secondary-button"
+                    type="button"
+                    [disabled]="
+                      vehicleChoicesLoading() || vehiclePage()!.page >= totalVehiclePages()
+                    "
+                    (click)="goToVehiclePage(vehiclePage()!.page + 1)"
+                  >
+                    Next
+                  </button>
+                </div>
+              </nav>
+            }
+          }
+          @if (selectedVehicle()) {
+            @if (assignmentLoading()) {
+              <p class="loading-state" role="status">Checking the current driver assignment…</p>
+            } @else if (assignmentError()) {
+              <p class="form-error" role="alert">{{ assignmentError() }}</p>
+              <button
+                class="secondary-button"
+                type="button"
+                (click)="selectVehicle(selectedVehicleId())"
+              >
+                Retry assignment check
+              </button>
+            } @else if (assignmentLoaded() && activeAssignment(); as assignment) {
+              <p class="trip-assignment-summary">
+                Assigned driver: <strong>{{ assignment.driverFullName }}</strong>
+                <span
+                  >· Starting odometer: {{ formatMileage(selectedVehicle()!.currentMileage) }}</span
+                >
+              </p>
+            } @else if (assignmentLoaded()) {
+              <p class="trip-empty-note">
+                This vehicle has no active driver assignment.
+                <a routerLink="/vehicles">Manage assignments</a>, then try again.
+              </p>
+            }
+          }
+        </fieldset>
+
+        <div class="form-grid trip-form-grid">
+          <label>
+            <span>Origin</span>
+            <input
+              name="origin"
+              [(ngModel)]="form.origin"
+              maxlength="200"
+              required
+              autocomplete="off"
+            />
+          </label>
+          <label>
+            <span>Destination</span>
+            <input
+              name="destination"
+              [(ngModel)]="form.destination"
+              maxlength="200"
+              required
+              autocomplete="off"
+            />
+          </label>
+          <label>
+            <span>Purpose</span>
+            <input
+              name="purpose"
+              [(ngModel)]="form.purpose"
+              maxlength="500"
+              required
+              autocomplete="off"
+            />
+          </label>
+          <label>
+            <span>Planned departure</span>
+            <input
+              name="plannedStart"
+              type="datetime-local"
+              [(ngModel)]="form.plannedStart"
+              required
+            />
+          </label>
+          <label>
+            <span>Starting odometer (km)</span>
+            <input
+              name="startMileage"
+              type="number"
+              [min]="selectedVehicle()?.currentMileage ?? 0"
+              step="0.1"
+              [(ngModel)]="form.startMileage"
+              required
+            />
+          </label>
+          <label class="trip-notes-field">
+            <span>Notes <span class="optional">(optional)</span></span>
+            <textarea name="notes" [(ngModel)]="form.notes" maxlength="2000" rows="2"></textarea>
+          </label>
+        </div>
+        <p class="form-note">
+          The starting odometer cannot be below the vehicle’s current reading. The API verifies the
+          vehicle, assignment, driver license, and mileage before saving.
+        </p>
+        <div class="form-actions">
+          <button
+            class="primary-button"
+            type="submit"
+            [disabled]="
+              tripForm.invalid ||
+              saving() ||
+              loading() ||
+              !selectedVehicle() ||
+              !assignmentLoaded() ||
+              !activeAssignment() ||
+              selectedVehicle()?.status !== activeVehicleStatus
+            "
+          >
+            {{ saving() ? 'Scheduling…' : 'Schedule trip' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  <section class="trip-list-section" aria-labelledby="trip-list-heading">
+    <div class="list-heading">
+      <h2 id="trip-list-heading">Trip records</h2>
+      <label class="trip-status-filter">
+        <span>Filter by status</span>
+        <select
+          #tripStatusSelect
+          [value]="statusFilter() ?? ''"
+          (change)="setStatusFilter(tripStatusSelect.value)"
+          [disabled]="loading()"
+        >
+          <option value="">All trips</option>
+          @for (status of statuses; track status.value) {
+            <option [value]="status.value">{{ status.label }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    @if (loading() && !tripPage()) {
+      <p class="loading-state" role="status">Loading trip records…</p>
+    } @else if (trips().length > 0) {
+      <ul class="trip-list" aria-label="Trips">
+        @for (trip of trips(); track trip.id) {
+          <li class="trip-row">
+            <div class="trip-route">
+              <strong
+                >{{ trip.origin }} <span aria-hidden="true">to</span> {{ trip.destination }}</strong
+              >
+              <span>{{ trip.purpose }}</span>
+            </div>
+            <dl class="trip-details">
+              <div>
+                <dt>Vehicle</dt>
+                <dd>{{ trip.vehiclePlateNumber }}</dd>
+              </div>
+              <div>
+                <dt>Driver</dt>
+                <dd>{{ trip.driverFullName }}</dd>
+              </div>
+            </dl>
+            <div class="trip-time">
+              <span>Planned departure</span>
+              <strong>{{ formatDate(trip.plannedStart) }}</strong>
+            </div>
+            <div class="trip-status">
+              <span>Status</span>
+              <strong>{{ statusLabel(trip.status) }}</strong>
+            </div>
+            <div class="trip-mileage">
+              <span>Distance</span>
+              <strong>{{ formatMileage(trip.distanceKm) }}</strong>
+            </div>
+            <div class="trip-actions">
+              @if (trip.status === plannedTripStatus) {
+                <button
+                  class="secondary-button"
+                  type="button"
+                  [disabled]="loading() || busyTripId() === trip.id || !canStart(trip)"
+                  (click)="startTrip(trip)"
+                >
+                  {{ busyTripId() === trip.id ? 'Starting…' : 'Start trip' }}
+                </button>
+                @if (isTripStartInFuture(trip)) {
+                  <span class="form-note">Available at planned departure</span>
+                }
+              }
+              @if (trip.status === inProgressTripStatus) {
+                <button
+                  class="secondary-button"
+                  type="button"
+                  [disabled]="loading() || busyTripId() === trip.id"
+                  (click)="beginComplete(trip)"
+                >
+                  Complete trip
+                </button>
+              }
+              @if (
+                isCompanyOwner() &&
+                trip.status !== completedTripStatus &&
+                trip.status !== cancelledTripStatus &&
+                completeTripId() !== trip.id
+              ) {
+                <button
+                  class="text-button destructive-button"
+                  type="button"
+                  [disabled]="loading() || busyTripId() === trip.id"
+                  (click)="cancelTrip(trip)"
+                >
+                  {{ busyTripId() === trip.id ? 'Cancelling…' : 'Cancel trip' }}
+                </button>
+              }
+            </div>
+            @if (trip.actualStart || trip.actualEnd || trip.notes) {
+              <div class="trip-extra">
+                @if (trip.actualStart) {
+                  <span>Started {{ formatDate(trip.actualStart) }}</span>
+                }
+                @if (trip.actualEnd) {
+                  <span>Ended {{ formatDate(trip.actualEnd) }}</span>
+                }
+                @if (trip.notes) {
+                  <span>Note: {{ trip.notes }}</span>
+                }
+              </div>
+            }
+            @if (completeTripId() === trip.id) {
+              <form class="trip-completion-form" (ngSubmit)="completeTrip(trip)">
+                <h3>Complete trip</h3>
+                <label>
+                  <span>End time</span>
+                  <input
+                    name="actualEnd"
+                    type="datetime-local"
+                    [(ngModel)]="completeActualEnd"
+                    [min]="trip.actualStart ? toLocalDateTime(trip.actualStart) : null"
+                    required
+                  />
+                </label>
+                <label>
+                  <span>Ending odometer (km)</span>
+                  <input
+                    name="endMileage"
+                    type="number"
+                    [min]="trip.startMileage"
+                    step="0.1"
+                    [(ngModel)]="completeEndMileage"
+                    required
+                  />
+                </label>
+                @if (formError()) {
+                  <p class="form-error" role="alert">{{ formError() }}</p>
+                }
+                <div class="trip-completion-actions">
+                  <button
+                    class="primary-button"
+                    type="submit"
+                    [disabled]="saving() || busyTripId() === trip.id || completeEndMileage === ''"
+                  >
+                    {{ busyTripId() === trip.id ? 'Completing…' : 'Save completion' }}
+                  </button>
+                  <button
+                    class="text-button"
+                    type="button"
+                    [disabled]="busyTripId() === trip.id"
+                    (click)="closeComplete()"
+                  >
+                    Keep in progress
+                  </button>
+                </div>
+              </form>
+            }
+          </li>
+        }
+      </ul>
+      <nav class="pagination" aria-label="Trip pages">
+        <span>{{ tripPage()!.totalCount }} trips · Page {{ page() }} of {{ totalPages() }}</span>
+        <div>
+          <button
+            class="secondary-button"
+            type="button"
+            [disabled]="loading() || page() <= 1"
+            (click)="goToPage(page() - 1)"
+          >
+            Previous
+          </button>
+          <button
+            class="secondary-button"
+            type="button"
+            [disabled]="loading() || page() >= totalPages()"
+            (click)="goToPage(page() + 1)"
+          >
+            Next
+          </button>
+        </div>
+      </nav>
+    } @else if (tripPage()) {
+      <div class="empty-state">
+        <h2>No trips match this view</h2>
+        <p>
+          Adjust the status filter or schedule a trip from a vehicle with an active driver
+          assignment.
+        </p>
+        @if (isCompanyOwner()) {
+          <button
+            class="primary-button"
+            type="button"
+            [disabled]="loading()"
+            (click)="beginCreate()"
+          >
+            Schedule a trip
+          </button>
+        }
+      </div>
+    }
+  </section>
+</main>

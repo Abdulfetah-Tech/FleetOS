@@ -1,5 +1,6 @@
 app-vehicle-management.vehicle-management,
-app-driver-management.driver-management {
+app-driver-management.driver-management,
+app-trip-management.trip-management {
   .vehicle-main {
   min-width: 0;
   padding: 27px clamp(20px, 3vw, 44px) 42px;
@@ -341,6 +342,239 @@ button:disabled {
   color: var(--critical);
 }
 
+.trip-vehicle-picker {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0 0 18px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 0 0 18px;
+}
+
+.trip-vehicle-picker legend {
+  padding: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.trip-vehicle-picker .form-note {
+  margin: -5px 0 0;
+}
+
+.trip-vehicle-search {
+  justify-content: flex-start;
+  max-width: 540px;
+}
+
+.trip-vehicle-search input {
+  width: min(34vw, 360px);
+}
+
+.trip-vehicle-select,
+.trip-status-filter {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.trip-vehicle-select {
+  max-width: 620px;
+}
+
+.trip-vehicle-select > span,
+.trip-status-filter > span {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.trip-vehicle-select select,
+.trip-status-filter select,
+.trip-completion-form input,
+.trip-notes-field textarea {
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 8px 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.trip-vehicle-select select,
+.trip-status-filter select {
+  width: 100%;
+}
+
+.trip-assignment-summary {
+  margin: 0;
+}
+
+.trip-assignment-summary > span {
+  color: var(--muted);
+}
+
+.trip-empty-note {
+  margin: 0;
+  color: var(--muted);
+}
+
+.trip-vehicle-pagination {
+  justify-content: flex-start;
+  padding: 0;
+}
+
+.trip-status-filter {
+  width: min(240px, 100%);
+}
+
+.trip-status-filter select {
+  min-height: 38px;
+  padding: 5px 8px;
+}
+
+.trip-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trip-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(140px, 1fr) minmax(155px, 1fr) minmax(85px, 0.6fr) minmax(100px, 0.7fr) minmax(150px, 1fr);
+  align-items: start;
+  gap: 13px 16px;
+  padding: 15px 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.trip-route,
+.trip-time,
+.trip-status,
+.trip-mileage {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.trip-route strong {
+  overflow-wrap: anywhere;
+}
+
+.trip-route > span,
+.trip-time > span,
+.trip-status > span,
+.trip-mileage > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.trip-details {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.trip-details > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.trip-details dt {
+  color: var(--muted);
+}
+
+.trip-details dt::after {
+  content: ':';
+}
+
+.trip-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.trip-time strong,
+.trip-status strong,
+.trip-mileage strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.trip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.trip-actions > .form-note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+}
+
+.trip-extra {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 5px 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.trip-completion-form {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.trip-completion-form h3,
+.trip-completion-form .form-error,
+.trip-completion-actions {
+  grid-column: 1 / -1;
+}
+
+.trip-completion-form h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.trip-completion-form label {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.trip-completion-form label > span {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.trip-notes-field textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.trip-completion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.trip-vehicle-select select:focus-visible,
+.trip-status-filter select:focus-visible,
+.trip-completion-form input:focus-visible,
+.trip-notes-field textarea:focus-visible {
+  border-color: var(--focus);
+}
+
 .driver-actions {
   display: flex;
   flex-wrap: wrap;
@@ -567,6 +801,10 @@ button:disabled {
     grid-template-columns: minmax(150px, 1.2fr) minmax(130px, 1fr) minmax(135px, 1fr) minmax(100px, 0.7fr);
   }
 
+  .trip-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .vehicle-actions {
     grid-column: 1 / -1;
     justify-content: flex-end;
@@ -575,6 +813,17 @@ button:disabled {
   .driver-actions {
     grid-column: 1 / -1;
     justify-content: flex-end;
+  }
+
+  .trip-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trip-route,
+  .trip-actions,
+  .trip-extra,
+  .trip-completion-form {
+    grid-column: 1 / -1;
   }
 
   .status-control {
@@ -662,6 +911,20 @@ button:disabled {
   }
 
   .candidate-pagination {
+    align-items: flex-start;
+  }
+
+  .trip-vehicle-search {
+    width: 100%;
+    max-width: none;
+  }
+
+  .trip-vehicle-search input {
+    width: auto;
+    flex: 1;
+  }
+
+  .trip-list-section > .list-heading {
     align-items: flex-start;
   }
 }

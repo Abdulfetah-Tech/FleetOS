@@ -19,6 +19,8 @@ TestResults/
 /.codex/
 /.cursor/
 /.gemini/
+/.impeccable/build/
+/.impeccable/mocks/
 /.opencode/
 
 # Node / Angular output

@@ -5,6 +5,7 @@ import { FleetDashboardComponent } from './features/dashboard/fleet-dashboard.co
 import { LoginComponent } from './features/auth/login.component';
 import { RegistrationComponent } from './features/auth/registration.component';
 import { DriverManagementComponent } from './features/drivers/driver-management.component';
+import { TripManagementComponent } from './features/trips/trip-management.component';
 import { VehicleManagementComponent } from './features/vehicles/vehicle-management.component';
 
 export const routes: Routes = [
@@ -18,6 +19,7 @@ export const routes: Routes = [
       { path: 'dashboard', component: FleetDashboardComponent },
       { path: 'vehicles', component: VehicleManagementComponent },
       { path: 'drivers', component: DriverManagementComponent },
+      { path: 'trips', component: TripManagementComponent },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
     ],
   },

@@ -84,6 +84,8 @@ Driver listing accepts `page`, `pageSize`, and optional `search` (maximum 100 ch
 
 Vehicle assignment reads require FleetManager; assignment creation and ending require CompanyOwner. A missing active assignment returns 404. Creating an assignment requires a same-organization active vehicle and an active driver with a non-expired license; these checks are enforced by the API even when a client filters its candidate list. The vehicle-scoped assignment response includes the driver and vehicle identifiers, display names, assignment timestamps, active state, and optional notes.
 
+Trip listing accepts `page`, `pageSize`, and optional `vehicleId`, `driverId`, and `status` filters. Creating a trip requires CompanyOwner and an existing active vehicle assignment for the selected vehicle and driver; the API also checks the driver license and that the starting odometer is not below the vehicle's current reading. FleetManager can start and complete trips; starting uses the API clock, and completion records an end time and odometer reading. CompanyOwner can cancel planned or in-progress trips. The domain enforces valid state transitions and non-decreasing trip mileage.
+
 ## Dashboard, reports, and notifications
 
 | Method | Path | Access | Purpose |

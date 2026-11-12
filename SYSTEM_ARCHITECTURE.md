@@ -63,7 +63,7 @@ The target diagram is a direction, not a claim that those services are connected
 ## Known architectural gaps
 
 - Organization is the current tenant boundary; branch hierarchy and the complete role-to-operation permission model are absent.
-- Phase 4 is underway: vehicle management, driver directory, and inline vehicle assignment workflows use tenant-scoped APIs. Driver and assignment mutations follow the existing CompanyOwner policy; trip, fuel, and maintenance UI workflows remain.
+- Phase 4 is underway: vehicle management, driver directory, inline vehicle assignment, and trip workflows use tenant-scoped APIs. Driver, assignment, trip creation, and cancellation follow the existing CompanyOwner policy; fuel and maintenance UI workflows remain.
 - Document storage is local disk and not appropriate for a horizontally scaled deployment.
 - Email confirmation/reset tokens depend on ASP.NET Core Data Protection keys; production must persist and share a protected key ring across restarts and API instances.
 - No production migration orchestration, secrets-vault configuration, backup/restore runbook, distributed work coordination, or monitoring export is configured.
