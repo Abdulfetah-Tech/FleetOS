@@ -75,6 +75,7 @@ The solution remains at the repository root. References point inward: API -> App
 - `GET /health/live` — process liveness.
 - `GET /health/ready` — readiness, including PostgreSQL connectivity.
 - `/api/v1` — API version metadata.
+- `/api/v1/*` — authenticated fleet, driver, trip, fuel, maintenance, inspection, incident, notification, organization, and report endpoints.
 - `/scalar/v1` and `/openapi/v1.json` — development-only API documentation.
 
-See `docs/architecture.md`, `docs/decisions.md`, and `docs/product-spec.md` for design and product context.
+See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for the current endpoint inventory. See [PROJECT_AUDIT.md](./PROJECT_AUDIT.md), [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md), [DATABASE_DESIGN.md](./DATABASE_DESIGN.md), [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md), and [DEVELOPMENT_PROGRESS.md](./DEVELOPMENT_PROGRESS.md) for the verified baseline and delivery plan. Existing design records remain in `docs/`.

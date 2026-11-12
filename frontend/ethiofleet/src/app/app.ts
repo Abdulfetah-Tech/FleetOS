@@ -11,14 +11,14 @@ export class App implements OnInit {
   protected readonly apiStatus = signal('Checking API health...');
 
   ngOnInit(): void {
-    fetch('http://localhost:5062/api/v1/health')
+    fetch('http://localhost:5062/health/ready')
       .then(async (response) => {
         if (!response.ok) {
           throw new Error(`API returned status ${response.status}`);
         }
 
-        const payload = await response.json();
-        this.apiStatus.set(`API status: ${payload.status} — ${payload.service}`);
+        const payload: { status: string } = await response.json();
+        this.apiStatus.set(`API status: ${payload.status}`);
       })
       .catch(() => {
         this.apiStatus.set('API unavailable. Start the .NET API to see live health data.');
