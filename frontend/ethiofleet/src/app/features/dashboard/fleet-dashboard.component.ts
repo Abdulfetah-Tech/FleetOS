@@ -1,31 +1,23 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { getApiMessage } from '../../core/api/api-error';
-import { AuthService } from '../../core/auth/auth.service';
-import { ThemeService } from '../../core/theme/theme.service';
 import { DueMaintenanceSchedule, FleetDashboardResponse } from '../../core/dashboard/fleet-dashboard.models';
 import { FleetDashboardService } from '../../core/dashboard/fleet-dashboard.service';
 
 @Component({
   selector: 'app-fleet-dashboard',
   standalone: true,
-  imports: [RouterLink],
   host: { class: 'fleet-dashboard' },
   templateUrl: './fleet-dashboard.component.html',
   styleUrl: './fleet-dashboard.component.scss',
 })
 export class FleetDashboardComponent implements OnInit {
   private readonly dashboardService = inject(FleetDashboardService);
-  private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
 
-  protected readonly theme = inject(ThemeService);
   protected readonly dashboard = signal<FleetDashboardResponse | null>(null);
   protected readonly loading = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
-  protected readonly signingOut = signal(false);
   protected readonly bandFlap = signal(false);
   protected readonly attentionCount = computed(() => {
     const data = this.dashboard();
@@ -34,10 +26,6 @@ export class FleetDashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadDashboard();
-  }
-
-  protected get authSessionEmail(): string {
-    return this.auth.currentSession()?.user.email ?? '';
   }
 
   protected loadDashboard(): void {
@@ -55,17 +43,6 @@ export class FleetDashboardComponent implements OnInit {
         this.bandFlap.set(true);
       },
       error: (error: unknown) => this.errorMessage.set(getDashboardErrorMessage(error)),
-    });
-  }
-
-  protected signOut(): void {
-    if (this.signingOut()) {
-      return;
-    }
-    this.signingOut.set(true);
-    this.auth.logout().subscribe({
-      next: () => void this.router.navigateByUrl('/login'),
-      error: () => void this.router.navigate(['/login'], { queryParams: { logout: 'unconfirmed' } }),
     });
   }
 

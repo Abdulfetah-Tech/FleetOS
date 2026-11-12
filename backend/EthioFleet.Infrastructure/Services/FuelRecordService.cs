@@ -1,3 +1,4 @@
+using EthioFleet.Application.Common;
 using EthioFleet.Application.Fuel;
 using EthioFleet.Domain.Fuel;
 using EthioFleet.Infrastructure.Persistence;
@@ -49,8 +50,7 @@ public sealed class FuelRecordService(AppDbContext dbContext) : IFuelRecordServi
 
     public async Task<FuelRecordPage> ListAsync(FuelRecordListQuery query, CancellationToken cancellationToken)
     {
-        var page = Math.Max(1, query.Page);
-        var pageSize = Math.Clamp(query.PageSize, 1, 100);
+        var window = PageWindow.Create(query.Page, query.PageSize);
         IQueryable<FuelRecord> records = QueryRecords();
         if (query.VehicleId is Guid vehicleId)
         {
@@ -64,10 +64,10 @@ public sealed class FuelRecordService(AppDbContext dbContext) : IFuelRecordServi
         var count = await records.CountAsync(cancellationToken);
         var items = await records.OrderByDescending(item => item.OccurredAt)
             .ThenBy(item => item.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .ToListAsync(cancellationToken);
-        return new FuelRecordPage(items.Select(ToResponse).ToArray(), page, pageSize, count);
+        return new FuelRecordPage(items.Select(ToResponse).ToArray(), window.Page, window.PageSize, count);
     }
 
     public async Task<bool> DeleteAsync(Guid fuelRecordId, CancellationToken cancellationToken)

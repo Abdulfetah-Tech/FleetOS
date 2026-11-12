@@ -1,35 +1,4 @@
-<div class="workspace-shell">
-  <aside class="navigation-rail">
-    <a class="brand" routerLink="/dashboard">EthioFleet OS</a>
-    <nav class="primary-nav" aria-label="Primary navigation">
-      <a class="nav-link" routerLink="/dashboard" routerLinkActive="active" ariaCurrentWhenActive="page">
-        <span class="nav-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
-        </span>
-        Dashboard
-      </a>
-    </nav>
-    <div class="rail-account">
-      <div class="account-meta">
-        <span>Signed in as</span>
-        <strong>{{ authSessionEmail }}</strong>
-      </div>
-      <div class="account-actions">
-        <button
-          class="rail-button"
-          type="button"
-          [attr.aria-label]="theme.theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
-          [attr.aria-pressed]="theme.theme() === 'dark'"
-          (click)="theme.toggle()"
-        >{{ theme.theme() === 'dark' ? 'Light mode' : 'Dark mode' }}</button>
-        <button class="rail-button" type="button" [disabled]="signingOut()" (click)="signOut()">
-          {{ signingOut() ? 'Signing out…' : 'Sign out' }}
-        </button>
-      </div>
-    </div>
-  </aside>
-
-  <main class="dashboard-main" [attr.aria-busy]="loading()">
+<main class="dashboard-main" [attr.aria-busy]="loading()">
     <header class="page-header">
       <div>
         <h1>Fleet overview</h1>
@@ -167,5 +136,4 @@
         <p>Check the API connection and try loading the dashboard again.</p>
       </section>
     }
-  </main>
-</div>
+</main>

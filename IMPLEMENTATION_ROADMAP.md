@@ -34,6 +34,8 @@ The current dashboard foundation has unit coverage and responsive browser verifi
 
 ## Phase 4 — Core fleet operations
 
+**Status: In progress; vehicle management is the first connected operations workflow.**
+
 - Connect existing vehicle, driver, assignment, trip, fuel, and maintenance APIs to functional UI workflows.
 - Complete dispatch, trip delivery evidence, document/insurance views, and pagination/filter needs.
 - Add missing validation and authorization cases based on agreed operations.

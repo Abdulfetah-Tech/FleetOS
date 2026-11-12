@@ -1,3 +1,4 @@
+using EthioFleet.Application.Common;
 using EthioFleet.Application.Trips;
 using EthioFleet.Domain.Assignments;
 using EthioFleet.Domain.Trips;
@@ -43,8 +44,7 @@ public sealed class TripService(AppDbContext dbContext, EthioFleet.Application.I
 
     public async Task<TripPage> ListAsync(TripListQuery query, CancellationToken cancellationToken)
     {
-        var page = Math.Max(query.Page, 1);
-        var pageSize = Math.Clamp(query.PageSize, 1, 100);
+        var window = PageWindow.Create(query.Page, query.PageSize);
         IQueryable<Trip> trips = QueryTrips();
         if (query.VehicleId is Guid vehicleId)
         {
@@ -62,10 +62,10 @@ public sealed class TripService(AppDbContext dbContext, EthioFleet.Application.I
         var count = await trips.CountAsync(cancellationToken);
         var items = await trips.OrderByDescending(trip => trip.PlannedStart)
             .ThenBy(trip => trip.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .ToListAsync(cancellationToken);
-        return new TripPage(items.Select(ToResponse).ToArray(), page, pageSize, count);
+        return new TripPage(items.Select(ToResponse).ToArray(), window.Page, window.PageSize, count);
     }
 
     public async Task<TripResult> StartAsync(Guid tripId, CancellationToken cancellationToken)

@@ -6,6 +6,7 @@
 - Development launch profile: `http://localhost:5062`.
 - Protected routes accept `Authorization: Bearer <access-token>`.
 - JSON request/response bodies use ASP.NET Core controller conventions. Validation/domain failures are returned as client errors; unhandled errors use the configured problem-details exception handler.
+- Enum properties retain the API's numeric JSON representation for compatibility.
 - OpenAPI and Scalar are available only in the Development environment.
 
 ## Operational endpoints
@@ -75,6 +76,8 @@ Production deployment must persist and share ASP.NET Core Data Protection keys a
 | POST | `/api/v1/trips/{id}/complete` | Fleet manager | Complete in-progress trip |
 | POST | `/api/v1/trips/{id}/cancel` | Company owner | Cancel trip |
 | GET/POST/PATCH | `/api/v1/incidents[/{id}]` | Fleet manager for reads; company owner for create/status changes | Incident management |
+
+Vehicle listing accepts `page` (values below 1 normalize to 1), `pageSize` (normalized to 1–100), and optional `search` (maximum 100 characters; plate, make, or model). The response contains `items`, normalized `page` and `pageSize`, and `totalCount`. Missing vehicles return 404 Problem Details; duplicate plate/VIN conflicts return 409 Problem Details. Domain validation errors use the global 400 Problem Details response.
 
 ## Dashboard, reports, and notifications
 

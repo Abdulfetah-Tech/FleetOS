@@ -1,3 +1,4 @@
+using EthioFleet.Application.Common;
 using EthioFleet.Application.Inspections;
 using EthioFleet.Domain.Inspections;
 using EthioFleet.Infrastructure.Persistence;
@@ -36,8 +37,7 @@ public sealed class InspectionService(
 
     public async Task<InspectionPage> ListAsync(Guid? vehicleId, int page, int pageSize, CancellationToken cancellationToken)
     {
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        var window = PageWindow.Create(page, pageSize);
         IQueryable<VehicleInspection> inspections = Query();
         if (vehicleId is Guid id)
         {
@@ -47,10 +47,10 @@ public sealed class InspectionService(
         var total = await inspections.CountAsync(cancellationToken);
         var items = await inspections.OrderByDescending(item => item.InspectedAt)
             .ThenBy(item => item.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .ToListAsync(cancellationToken);
-        return new InspectionPage(items.Select(ToResponse).ToArray(), page, pageSize, total);
+        return new InspectionPage(items.Select(ToResponse).ToArray(), window.Page, window.PageSize, total);
     }
 
     public async Task<ApplicationInspectionResult> CompleteAsync(Guid id, CompleteInspectionRequest request, CancellationToken cancellationToken)

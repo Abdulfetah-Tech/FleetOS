@@ -1,3 +1,4 @@
+using EthioFleet.Application.Common;
 using EthioFleet.Application.Drivers;
 using EthioFleet.Domain.Drivers;
 using EthioFleet.Infrastructure.Persistence;
@@ -29,8 +30,7 @@ public sealed class DriverService(AppDbContext dbContext) : IDriverService
 
     public async Task<DriverPage> ListAsync(DriverListQuery query, CancellationToken cancellationToken)
     {
-        var page = Math.Max(1, query.Page);
-        var pageSize = Math.Clamp(query.PageSize, 1, 100);
+        var window = PageWindow.Create(query.Page, query.PageSize);
         IQueryable<Driver> drivers = dbContext.Drivers.AsNoTracking().Include(driver => driver.License);
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -45,10 +45,10 @@ public sealed class DriverService(AppDbContext dbContext) : IDriverService
         var count = await drivers.CountAsync(cancellationToken);
         var results = await drivers.OrderBy(driver => driver.FullName)
             .ThenBy(driver => driver.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .ToListAsync(cancellationToken);
-        return new DriverPage(results.Select(ToResponse).ToArray(), page, pageSize, count);
+        return new DriverPage(results.Select(ToResponse).ToArray(), window.Page, window.PageSize, count);
     }
 
     public async Task<DriverResult> UpdateAsync(Guid driverId, UpdateDriverRequest request, CancellationToken cancellationToken)

@@ -1,3 +1,4 @@
+using EthioFleet.Application.Common;
 using EthioFleet.Application.Documents;
 using EthioFleet.Domain.Documents;
 using EthioFleet.Infrastructure.Persistence;
@@ -53,18 +54,18 @@ public sealed class VehicleDocumentService(
 
     public async Task<VehicleDocumentPage> ListAsync(Guid vehicleId, int page, int pageSize, CancellationToken cancellationToken)
     {
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        var window = PageWindow.Create(page, pageSize);
         var documents = dbContext.VehicleDocuments.AsNoTracking().Where(document => document.VehicleId == vehicleId);
         var count = await documents.CountAsync(cancellationToken);
         var items = await documents.OrderBy(document => document.ExpiresOn)
             .ThenBy(document => document.Name)
             .ThenBy(document => document.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .ToListAsync(cancellationToken);
         var today = DateOnly.FromDateTime(clock.UtcNow.UtcDateTime);
-        return new VehicleDocumentPage(items.Select(document => ToResponse(document, today)).ToArray(), page, pageSize, count);
+        return new VehicleDocumentPage(items.Select(document => ToResponse(document, today)).ToArray(),
+            window.Page, window.PageSize, count);
     }
 
     public async Task<VehicleDocumentResult> GetAsync(Guid documentId, CancellationToken cancellationToken)

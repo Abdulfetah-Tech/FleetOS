@@ -1,3 +1,4 @@
+using EthioFleet.Application.Common;
 using EthioFleet.Application.Notifications;
 using EthioFleet.Domain.Notifications;
 using EthioFleet.Infrastructure.Persistence;
@@ -9,8 +10,7 @@ public sealed class NotificationService(AppDbContext dbContext, EthioFleet.Appli
 {
     public async Task<NotificationPage> ListAsync(bool unreadOnly, int page, int pageSize, CancellationToken cancellationToken)
     {
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        var window = PageWindow.Create(page, pageSize);
         var query = dbContext.Notifications.AsNoTracking();
         var unreadCount = await query.CountAsync(notification => notification.ReadAt == null, cancellationToken);
         if (unreadOnly)
@@ -20,8 +20,8 @@ public sealed class NotificationService(AppDbContext dbContext, EthioFleet.Appli
         var total = await query.CountAsync(cancellationToken);
         var items = await query.OrderByDescending(notification => notification.CreatedAt)
             .ThenBy(notification => notification.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .Select(notification => new NotificationResponse(
                 notification.Id,
                 notification.OrganizationId,
@@ -33,7 +33,7 @@ public sealed class NotificationService(AppDbContext dbContext, EthioFleet.Appli
                 notification.ReadAt,
                 notification.ReadAt != null))
             .ToListAsync(cancellationToken);
-        return new NotificationPage(items, page, pageSize, total, unreadCount);
+        return new NotificationPage(items, window.Page, window.PageSize, total, unreadCount);
     }
 
     public async Task<bool> MarkReadAsync(Guid notificationId, CancellationToken cancellationToken)

@@ -148,34 +148,6 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
                 .HasPrincipalKey(assignment => new { assignment.OrganizationId, assignment.Id })
                 .OnDelete(DeleteBehavior.Restrict);
         });
-
-        modelBuilder.Entity<Trip>(entity =>
-        {
-            entity.HasAlternateKey(trip => new { trip.OrganizationId, trip.Id });
-            entity.HasIndex(trip => new { trip.OrganizationId, trip.Status, trip.PlannedStart });
-            entity.HasIndex(trip => new { trip.OrganizationId, trip.VehicleId, trip.PlannedStart });
-            entity.Property(trip => trip.StartMileage).HasPrecision(12, 1);
-            entity.Property(trip => trip.EndMileage).HasPrecision(12, 1);
-            entity.Property(trip => trip.Origin).HasMaxLength(200).IsRequired();
-            entity.Property(trip => trip.Destination).HasMaxLength(200).IsRequired();
-            entity.Property(trip => trip.Purpose).HasMaxLength(500).IsRequired();
-            entity.Property(trip => trip.Notes).HasMaxLength(2000).IsRequired();
-            entity.HasOne(trip => trip.Vehicle)
-                .WithMany()
-                .HasForeignKey(trip => new { trip.OrganizationId, trip.VehicleId })
-                .HasPrincipalKey(vehicle => new { vehicle.OrganizationId, vehicle.Id })
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(trip => trip.Driver)
-                .WithMany()
-                .HasForeignKey(trip => new { trip.OrganizationId, trip.DriverId })
-                .HasPrincipalKey(driver => new { driver.OrganizationId, driver.Id })
-                .OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(trip => trip.VehicleAssignment)
-                .WithMany()
-                .HasForeignKey(trip => new { trip.OrganizationId, trip.VehicleAssignmentId })
-                .HasPrincipalKey(assignment => new { assignment.OrganizationId, assignment.Id })
-                .OnDelete(DeleteBehavior.Restrict);
-        });
         modelBuilder.Entity<FuelRecord>(entity =>
         {
             entity.HasIndex(record => new { record.OrganizationId, record.VehicleId, record.OccurredAt });
@@ -311,23 +283,6 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
             entity.HasOne<Organization>()
                 .WithMany()
                 .HasForeignKey(incident => incident.OrganizationId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
-
-        modelBuilder.Entity<VehicleDocument>(entity =>
-        {
-            entity.HasIndex(document => new { document.OrganizationId, document.VehicleId, document.ExpiresOn });
-            entity.HasIndex(document => new { document.OrganizationId, document.VehicleId, document.Type, document.Status });
-            entity.HasIndex(document => document.StorageKey).IsUnique();
-            entity.Property(document => document.Name).HasMaxLength(160).IsRequired();
-            entity.Property(document => document.FileName).HasMaxLength(255).IsRequired();
-            entity.Property(document => document.MediaType).HasMaxLength(127).IsRequired();
-            entity.Property(document => document.StorageKey).HasMaxLength(512).IsRequired();
-            entity.Property(document => document.ChecksumSha256).HasMaxLength(64).IsRequired();
-            entity.HasOne(document => document.Vehicle)
-                .WithMany()
-                .HasForeignKey(document => new { document.OrganizationId, document.VehicleId })
-                .HasPrincipalKey(vehicle => new { vehicle.OrganizationId, vehicle.Id })
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

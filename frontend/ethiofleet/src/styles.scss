@@ -1,3 +1,5 @@
+@use './app/features/vehicles/vehicle-management.styles';
+
 :root {
   color-scheme: light;
   --sign-yellow: #ffd500;
@@ -51,7 +53,7 @@ body {
   line-height: 1.45;
 }
 
-app-fleet-dashboard {
+app-fleet-workspace {
   display: block;
   min-height: 100vh;
 }
@@ -177,10 +179,6 @@ input {
   color: var(--critical);
 }
 
-app-fleet-dashboard.fleet-dashboard .nav-link:not(.active):hover {
-  background: rgba(17, 17, 17, 0.12);
-}
-
 app-fleet-dashboard.fleet-dashboard .refresh-button:hover:not(:disabled) {
   background: var(--ink);
   color: var(--surface);
@@ -202,71 +200,12 @@ app-fleet-dashboard.fleet-dashboard .refresh-button:hover:not(:disabled) {
 }
 
 @media (max-width: 900px) {
-  app-fleet-dashboard.fleet-dashboard .workspace-shell {
-    grid-template-columns: 1fr;
-  }
-
-  app-fleet-dashboard.fleet-dashboard .navigation-rail {
-    display: grid;
-    grid-template-columns: minmax(130px, auto) minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 14px;
-    min-height: 68px;
-    padding: 10px 20px;
-  }
-
-  app-fleet-dashboard.fleet-dashboard .brand {
-    padding: 0;
-    border: 0;
-  }
-
-  app-fleet-dashboard.fleet-dashboard .primary-nav {
-    display: flex;
-    margin: 0;
-  }
-
-  app-fleet-dashboard.fleet-dashboard .rail-account {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-  }
-
-  app-fleet-dashboard.fleet-dashboard .account-meta {
-    display: none;
-  }
-
   app-fleet-dashboard.fleet-dashboard .dashboard-main {
     padding: 23px 24px 36px;
   }
 }
 
 @media (max-width: 640px) {
-  app-fleet-dashboard.fleet-dashboard .navigation-rail {
-    grid-template-columns: 1fr auto;
-    gap: 8px 14px;
-    padding: 10px 15px;
-  }
-
-  app-fleet-dashboard.fleet-dashboard .primary-nav {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  app-fleet-dashboard.fleet-dashboard .rail-account {
-    grid-column: 2;
-    grid-row: 1;
-    justify-content: flex-end;
-  }
-
-  app-fleet-dashboard.fleet-dashboard .rail-button {
-    min-height: 34px;
-    padding: 5px 7px;
-    font-size: 12px;
-  }
-
   app-fleet-dashboard.fleet-dashboard .dashboard-main {
     padding: 20px 16px 30px;
   }

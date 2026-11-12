@@ -1,9 +1,11 @@
 using EthioFleet.Application.Interfaces;
+using EthioFleet.Application.Vehicles;
 using EthioFleet.Domain.Organizations;
 using EthioFleet.Domain.Users;
 using EthioFleet.Domain.Vehicles;
 using EthioFleet.Infrastructure.Authentication;
 using EthioFleet.Infrastructure.Persistence;
+using EthioFleet.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 
@@ -90,6 +92,39 @@ public sealed class TenantIsolationTests : IAsyncLifetime
         await using var duplicateVinContext = CreateContext(organizationA);
         duplicateVinContext.Vehicles.Add(CreateVehicle("OTHER-PLATE", "1hgcm82633a004352"));
         await Assert.ThrowsAsync<DbUpdateException>(() => duplicateVinContext.SaveChangesAsync());
+    }
+
+    [Fact]
+    public async Task VehicleServiceScopesReadsAndDeletionAndStampsCreationToTrustedTenant()
+    {
+        var organizationA = Guid.NewGuid();
+        var organizationB = Guid.NewGuid();
+        await SeedOrganizationsAsync(organizationA, organizationB);
+        Guid vehicleBId;
+        await using (var tenantAContext = CreateContext(organizationA))
+        {
+            var service = new VehicleService(tenantAContext);
+            var created = await service.CreateAsync(BuildVehicleRequest("TENANT-A"), CancellationToken.None);
+            Assert.Equal(organizationA, created.Vehicle!.OrganizationId);
+        }
+
+        await using (var tenantBContext = CreateContext(organizationB))
+        {
+            var service = new VehicleService(tenantBContext);
+            var created = await service.CreateAsync(BuildVehicleRequest("TENANT-B"), CancellationToken.None);
+            vehicleBId = created.Vehicle!.Id;
+            Assert.Equal(organizationB, created.Vehicle.OrganizationId);
+        }
+
+        await using var verifyTenantAContext = CreateContext(organizationA);
+        var tenantAService = new VehicleService(verifyTenantAContext);
+        var page = await tenantAService.ListAsync(new VehicleListQuery(), CancellationToken.None);
+
+        Assert.Single(page.Items);
+        Assert.Equal(organizationA, page.Items.Single().OrganizationId);
+        Assert.True((await tenantAService.GetAsync(vehicleBId, CancellationToken.None)).NotFound);
+        Assert.False(await tenantAService.DeleteAsync(vehicleBId, CancellationToken.None));
+        Assert.Equal(1, (await tenantAService.ListAsync(new VehicleListQuery(), CancellationToken.None)).TotalCount);
     }
 
     [Fact]
@@ -253,6 +288,9 @@ public sealed class TenantIsolationTests : IAsyncLifetime
 
     private static Vehicle CreateVehicle(string plate, string? vin) => new(
         plate, "Toyota", "Hilux", 2020, VehicleType.Pickup, FuelType.Diesel, 100, vin);
+
+    private static CreateVehicleRequest BuildVehicleRequest(string plate) => new(
+        plate, "Toyota", "Hilux", 2020, VehicleType.Pickup, FuelType.Diesel, 100, null);
 
     private static AppIdentityUser CreateIdentityUser(Guid organizationId, string userName, string email) => new()
     {

@@ -1,3 +1,4 @@
+using EthioFleet.Application.Common;
 using EthioFleet.Application.Maintenance;
 using EthioFleet.Domain.Maintenance;
 using EthioFleet.Infrastructure.Persistence;
@@ -25,8 +26,7 @@ public sealed class MaintenanceService(AppDbContext dbContext, EthioFleet.Applic
     public async Task<MaintenanceRecordPage> ListRecordsAsync(
         Guid? vehicleId, int page, int pageSize, CancellationToken cancellationToken)
     {
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        var window = PageWindow.Create(page, pageSize);
         IQueryable<MaintenanceRecord> records = dbContext.MaintenanceRecords.AsNoTracking().Include(record => record.Vehicle);
         if (vehicleId is Guid id)
         {
@@ -35,8 +35,9 @@ public sealed class MaintenanceService(AppDbContext dbContext, EthioFleet.Applic
 
         var total = await records.CountAsync(cancellationToken);
         var items = await records.OrderByDescending(record => record.PerformedOn)
-            .ThenBy(record => record.Id).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
-        return new MaintenanceRecordPage(items.Select(ToRecordResponse).ToArray(), page, pageSize, total);
+            .ThenBy(record => record.Id).Skip(window.Offset).Take(window.PageSize).ToListAsync(cancellationToken);
+        return new MaintenanceRecordPage(items.Select(ToRecordResponse).ToArray(),
+            window.Page, window.PageSize, total);
     }
 
     public async Task<MaintenanceScheduleResponse> CreateScheduleAsync(
@@ -54,8 +55,7 @@ public sealed class MaintenanceService(AppDbContext dbContext, EthioFleet.Applic
     public async Task<MaintenanceSchedulePage> ListSchedulesAsync(
         Guid? vehicleId, bool dueOnly, int page, int pageSize, CancellationToken cancellationToken)
     {
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        var window = PageWindow.Create(page, pageSize);
         IQueryable<MaintenanceSchedule> schedules = dbContext.MaintenanceSchedules.AsNoTracking().Include(schedule => schedule.Vehicle);
         if (vehicleId is Guid id)
         {
@@ -74,9 +74,10 @@ public sealed class MaintenanceService(AppDbContext dbContext, EthioFleet.Applic
         var items = await schedules.OrderBy(schedule => schedule.NextDueDate)
             .ThenBy(schedule => schedule.NextDueMileage)
             .ThenBy(schedule => schedule.Id)
-            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
+            .Skip(window.Offset).Take(window.PageSize).ToListAsync(cancellationToken);
         return new MaintenanceSchedulePage(items.Select(schedule =>
-            ToScheduleResponse(schedule, schedule.Vehicle, today)).ToArray(), page, pageSize, total);
+            ToScheduleResponse(schedule, schedule.Vehicle, today)).ToArray(),
+            window.Page, window.PageSize, total);
     }
 
     public async Task<MaintenanceResult<MaintenanceScheduleResponse>> CompleteScheduleAsync(

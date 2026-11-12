@@ -1,3 +1,4 @@
+using EthioFleet.Application.Common;
 using EthioFleet.Application.Vehicles;
 using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Vehicles;
@@ -28,8 +29,7 @@ public sealed class VehicleService(AppDbContext dbContext) : IVehicleService
 
     public async Task<VehiclePage> ListAsync(VehicleListQuery query, CancellationToken cancellationToken)
     {
-        var page = Math.Max(1, query.Page);
-        var pageSize = Math.Clamp(query.PageSize, 1, 100);
+        var window = PageWindow.Create(query.Page, query.PageSize);
         var vehicles = dbContext.Vehicles.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -45,8 +45,8 @@ public sealed class VehicleService(AppDbContext dbContext) : IVehicleService
         var totalCount = await vehicles.CountAsync(cancellationToken);
         var items = await vehicles.OrderBy(vehicle => vehicle.NormalizedPlateNumber)
             .ThenBy(vehicle => vehicle.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .Select(vehicle => new VehicleResponse(
                 vehicle.Id,
                 vehicle.OrganizationId,
@@ -64,7 +64,7 @@ public sealed class VehicleService(AppDbContext dbContext) : IVehicleService
                 vehicle.CreatedAt,
                 vehicle.UpdatedAt))
             .ToListAsync(cancellationToken);
-        return new VehiclePage(items, page, pageSize, totalCount);
+        return new VehiclePage(items, window.Page, window.PageSize, totalCount);
     }
 
     public async Task<VehicleResult> UpdateAsync(Guid vehicleId, UpdateVehicleRequest request, CancellationToken cancellationToken)

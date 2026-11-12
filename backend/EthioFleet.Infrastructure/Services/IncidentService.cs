@@ -1,3 +1,4 @@
+using EthioFleet.Application.Common;
 using EthioFleet.Application.Incidents;
 using EthioFleet.Domain.Incidents;
 using EthioFleet.Infrastructure.Persistence;
@@ -40,8 +41,7 @@ public sealed class IncidentService(AppDbContext dbContext, EthioFleet.Applicati
     public async Task<IncidentPage> ListAsync(
         Guid? vehicleId, IncidentStatus? status, int page, int pageSize, CancellationToken cancellationToken)
     {
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        var window = PageWindow.Create(page, pageSize);
         IQueryable<Incident> incidents = Query();
         if (vehicleId is Guid requestedVehicle)
         {
@@ -55,10 +55,10 @@ public sealed class IncidentService(AppDbContext dbContext, EthioFleet.Applicati
         var total = await incidents.CountAsync(cancellationToken);
         var items = await incidents.OrderByDescending(item => item.OccurredAt)
             .ThenBy(item => item.Id)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip(window.Offset)
+            .Take(window.PageSize)
             .ToListAsync(cancellationToken);
-        return new IncidentPage(items.Select(ToResponse).ToArray(), page, pageSize, total);
+        return new IncidentPage(items.Select(ToResponse).ToArray(), window.Page, window.PageSize, total);
     }
 
     public async Task<IncidentResult> UpdateStatusAsync(

@@ -87,3 +87,30 @@ Complete the role-to-operation matrix and authorization tests, then implement th
 ### Next
 
 Configure an email provider and test the frontend against the real API with a verified account, then begin the approved vehicle and driver workflows.
+
+## Phase 4 — Core fleet operations
+
+**Status:** In progress; vehicle management is the first connected operations workflow.
+
+### Completed in this slice
+
+- Extracted dashboard navigation, theme, and account actions into a shared authenticated workspace layout.
+- Added tenant-scoped vehicle listing, search, pagination, create, edit, status change, and owner-only removal against the existing API.
+- Added overflow-safe pagination normalization across paginated services and tenant-isolation regression coverage for vehicle operations.
+- Unified vehicle endpoint errors with RFC Problem Details and removed duplicate EF Core mappings for trips and vehicle documents.
+
+### Verification
+
+- Shared pagination boundary unit tests pass, including the maximum page value.
+- Angular production build passes without component-style budget warnings.
+- Vehicle tenant-isolation coverage verifies trusted tenant stamping, list isolation, cross-tenant not-found behavior, and protected deletion.
+- Backend test suite: 77 passed. Angular tests: 9 passed across 6 files.
+- Browser verification with intercepted API responses exercised vehicle create/edit/status/remove and authenticated navigation. Dashboard and vehicle layouts were checked at 1440px, 768px, 390px, and 320px; light/dark rendering and no horizontal overflow were verified.
+
+### Outstanding
+
+- Continue with driver, assignment, trip, fuel, and maintenance workflows after the corresponding operation requirements and authorization boundaries are validated.
+
+### Next
+
+Finish vehicle workflow verification, then connect the driver and assignment operations.

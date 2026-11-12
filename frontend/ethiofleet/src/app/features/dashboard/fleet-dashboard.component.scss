@@ -1,63 +1,3 @@
-.workspace-shell {
-  display: grid;
-  grid-template-columns: 224px minmax(0, 1fr);
-  min-height: 100vh;
-  background: var(--page);
-}
-
-.navigation-rail {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  padding: 22px 16px 16px;
-  background: var(--sign-yellow);
-  color: #111111;
-}
-
-.brand {
-  padding: 0 10px 22px;
-  border-bottom: 1px solid #111111;
-  color: #111111;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  text-decoration: none;
-}
-
-.primary-nav {
-  display: grid;
-  gap: 5px;
-  margin-top: 22px;
-}
-
-.nav-link {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 8px 10px;
-  border-radius: 3px;
-  color: #111111;
-  font-weight: 650;
-  text-decoration: none;
-}
-
-.nav-link.active {
-  background: #ffffff;
-}
-
-.nav-icon {
-  display: grid;
-  width: 27px;
-  height: 27px;
-  flex: none;
-  place-items: center;
-  border-radius: 3px;
-  background: #111111;
-  color: #ffffff;
-}
-
-.nav-icon svg,
 .refresh-button svg,
 .route-link svg {
   width: 16px;
@@ -69,53 +9,9 @@
   stroke-width: 1.8;
 }
 
-.rail-account {
-  display: grid;
-  gap: 12px;
-  margin-top: auto;
-  padding: 14px 7px 0;
-  border-top: 1px solid #111111;
-}
-
-.account-meta {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  font-size: 13px;
-}
-
-.account-meta strong {
-  overflow-wrap: anywhere;
-  font-size: 14px;
-}
-
-.account-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.rail-button {
-  min-height: 36px;
-  border: 1px solid #111111;
-  border-radius: 3px;
-  padding: 6px 9px;
-  background: transparent;
-  color: #111111;
-  font-size: 13px;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.rail-button:hover,
 .route-link:hover {
   background: #111111;
   color: #ffffff;
-}
-
-.rail-button:disabled {
-  cursor: wait;
-  opacity: 0.65;
 }
 
 .dashboard-main {

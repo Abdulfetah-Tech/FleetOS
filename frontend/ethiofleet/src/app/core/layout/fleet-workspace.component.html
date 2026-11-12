@@ -1,0 +1,39 @@
+<div class="workspace-shell">
+  <aside class="navigation-rail">
+    <a class="brand" routerLink="/dashboard">EthioFleet OS</a>
+    <nav class="primary-nav" aria-label="Primary navigation">
+      <a class="nav-link" routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">
+        <span class="nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>
+        </span>
+        Dashboard
+      </a>
+      <a class="nav-link" routerLink="/vehicles" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">
+        <span class="nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="m5 11 1.5-4h11L19 11M4 11h16l1 3v5h-2v-2H5v2H3v-5z"/><path d="M7 14h.01M17 14h.01"/></svg>
+        </span>
+        Vehicles
+      </a>
+    </nav>
+    <div class="rail-account">
+      <div class="account-meta">
+        <span>Signed in as</span>
+        <strong>{{ authSessionEmail }}</strong>
+      </div>
+      <div class="account-actions">
+        <button
+          class="rail-button"
+          type="button"
+          [attr.aria-label]="theme.theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+          [attr.aria-pressed]="theme.theme() === 'dark'"
+          (click)="theme.toggle()"
+        >{{ theme.theme() === 'dark' ? 'Light mode' : 'Dark mode' }}</button>
+        <button class="rail-button" type="button" [disabled]="signingOut()" (click)="signOut()">
+          {{ signingOut() ? 'Signing out…' : 'Sign out' }}
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <router-outlet></router-outlet>
+</div>
