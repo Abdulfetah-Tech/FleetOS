@@ -169,7 +169,10 @@ button:disabled {
 .form-grid input:focus-visible,
 .form-grid select:focus-visible,
 .search-form input:focus-visible,
-.status-control select:focus-visible {
+.status-control select:focus-visible,
+.assignment-search-form input:focus-visible,
+.assignment-driver-select select:focus-visible,
+.assignment-notes textarea:focus-visible {
   border-color: var(--focus);
 }
 
@@ -345,6 +348,145 @@ button:disabled {
   gap: 7px;
 }
 
+.vehicle-assignment {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px 16px;
+  min-width: 0;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+}
+
+.assignment-summary {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.assignment-summary > span,
+.assignment-active > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.assignment-summary strong,
+.assignment-active strong {
+  overflow-wrap: anywhere;
+}
+
+.assignment-panel {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 10px;
+  min-width: 0;
+  padding-bottom: 4px;
+}
+
+.assignment-panel > .form-error {
+  margin-bottom: 0;
+}
+
+.assignment-panel > button {
+  justify-self: start;
+}
+
+.assignment-active {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px 16px;
+}
+
+.assignment-empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.assignment-editor {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.assignment-editor h3 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+.assignment-editor .form-note {
+  margin: -5px 0 0;
+}
+
+.assignment-search-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 520px;
+}
+
+.assignment-search-form input,
+.assignment-driver-select select,
+.assignment-notes textarea {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 8px 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.assignment-search-form input {
+  width: min(34vw, 360px);
+  min-height: 42px;
+}
+
+.assignment-driver-select,
+.assignment-notes {
+  display: grid;
+  gap: 5px;
+  max-width: 620px;
+}
+
+.assignment-driver-select > span,
+.assignment-notes > span {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.assignment-driver-select select {
+  width: 100%;
+  min-height: 42px;
+}
+
+.assignment-notes textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.candidate-pagination {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 0;
+}
+
+.candidate-pagination > div,
+.assignment-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.assignment-form-actions {
+  align-items: center;
+}
+
 .vehicle-actions {
   display: flex;
   flex-wrap: wrap;
@@ -508,6 +650,19 @@ button:disabled {
   .pagination {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .assignment-search-form {
+    max-width: none;
+  }
+
+  .assignment-search-form input {
+    width: auto;
+    flex: 1;
+  }
+
+  .candidate-pagination {
+    align-items: flex-start;
   }
 }
 

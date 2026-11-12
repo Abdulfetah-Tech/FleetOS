@@ -82,6 +82,8 @@ Vehicle listing accepts `page` (values below 1 normalize to 1), `pageSize` (norm
 
 Driver listing accepts `page`, `pageSize`, and optional `search` (maximum 100 characters; full name, email, phone, or license number). Pagination uses the same normalization and response shape. Driver status mutations, like profile writes and deletion, require the CompanyOwner policy; reads require FleetManager. Missing drivers return 404 Problem Details, duplicate license conflicts return 409 Problem Details, and invalid input returns 400.
 
+Vehicle assignment reads require FleetManager; assignment creation and ending require CompanyOwner. A missing active assignment returns 404. Creating an assignment requires a same-organization active vehicle and an active driver with a non-expired license; these checks are enforced by the API even when a client filters its candidate list. The vehicle-scoped assignment response includes the driver and vehicle identifiers, display names, assignment timestamps, active state, and optional notes.
+
 ## Dashboard, reports, and notifications
 
 | Method | Path | Access | Purpose |

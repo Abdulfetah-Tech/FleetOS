@@ -153,6 +153,147 @@
                 <button class="text-button destructive-button" type="button" [disabled]="loading() || busyVehicleId() === vehicle.id" (click)="deleteVehicle(vehicle)">Remove</button>
               }
             </div>
+            <section class="vehicle-assignment" [attr.aria-busy]="assignmentState(vehicle.id).loading">
+              <div class="assignment-summary">
+                <span>Driver assignment</span>
+                @if (assignmentState(vehicle.id).assignment; as assignment) {
+                  <strong>{{ assignment.driverFullName }}</strong>
+                } @else if (assignmentState(vehicle.id).loaded && !assignmentState(vehicle.id).error) {
+                  <strong>Unassigned</strong>
+                } @else {
+                  <span>Not checked</span>
+                }
+              </div>
+              <button
+                class="secondary-button"
+                type="button"
+                [disabled]="loading() || assignmentSaving() || assignmentBusyVehicleId() === vehicle.id"
+                [attr.aria-expanded]="assignmentPanelVehicleId() === vehicle.id"
+                [attr.aria-label]="'Manage assignment for ' + vehicle.plateNumber"
+                (click)="toggleAssignmentPanel(vehicle)"
+              >
+                {{ assignmentPanelVehicleId() === vehicle.id ? 'Close' : assignmentState(vehicle.id).loaded ? 'Manage' : 'View' }}
+              </button>
+              @if (assignmentPanelVehicleId() === vehicle.id) {
+                <div class="assignment-panel">
+                  @if (assignmentState(vehicle.id).loading) {
+                    <p class="loading-state" role="status">Loading the current driver assignment…</p>
+                  } @else if (assignmentState(vehicle.id).error && assigningVehicleId() !== vehicle.id) {
+                    <p class="form-error" role="alert">{{ assignmentState(vehicle.id).error }}</p>
+                    <button class="secondary-button" type="button" (click)="loadAssignment(vehicle)">Try again</button>
+                  } @else if (assignmentState(vehicle.id).assignment; as assignment) {
+                    <div class="assignment-active">
+                      <strong>{{ assignment.driverFullName }}</strong>
+                      <span>Assigned {{ formatAssignmentTime(assignment.assignedAt) }}</span>
+                      @if (assignment.notes) {
+                        <span>Note: {{ assignment.notes }}</span>
+                      }
+                    </div>
+                    @if (isCompanyOwner()) {
+                      <button
+                        class="text-button destructive-button"
+                        type="button"
+                        [disabled]="assignmentBusyVehicleId() === vehicle.id"
+                        (click)="endAssignment(vehicle, assignment)"
+                      >
+                        {{ assignmentBusyVehicleId() === vehicle.id ? 'Ending…' : 'End assignment' }}
+                      </button>
+                    }
+                  } @else if (assignmentState(vehicle.id).loaded) {
+                    <p class="assignment-empty">No active driver assignment.</p>
+                    @if (isCompanyOwner() && assigningVehicleId() !== vehicle.id) {
+                      @if (vehicle.status === activeVehicleStatus) {
+                        <button class="primary-button" type="button" (click)="beginAssignment(vehicle)">Assign a driver</button>
+                      } @else {
+                        <p class="form-note">Only an active vehicle can be assigned.</p>
+                      }
+                    }
+                  }
+
+                  @if (assigningVehicleId() === vehicle.id) {
+                    <section class="assignment-editor" aria-labelledby="assignment-editor-heading">
+                      <h3 id="assignment-editor-heading">Assign a driver</h3>
+                      <p class="form-note">Search returns active drivers with unexpired licenses. The API checks eligibility again when you assign.</p>
+                      @if (vehicle.status !== activeVehicleStatus) {
+                        <p class="form-note">This vehicle is no longer active. Set it to Active before assigning a driver.</p>
+                      }
+                      @if (assignmentState(vehicle.id).error) {
+                        <p class="form-error" role="alert">{{ assignmentState(vehicle.id).error }}</p>
+                      }
+                      <form class="assignment-search-form" role="search" (ngSubmit)="searchDriverCandidates()">
+                        <label class="visually-hidden" [for]="'driver-search-' + vehicle.id">Search eligible drivers</label>
+                        <input
+                          [id]="'driver-search-' + vehicle.id"
+                          name="driverSearch"
+                          type="search"
+                          maxlength="100"
+                          placeholder="Name, email, phone, or license"
+                          [ngModel]="candidateSearchText()"
+                          (ngModelChange)="candidateSearchText.set($event)"
+                        >
+                        <button class="secondary-button" type="submit" [disabled]="candidatesLoading()">
+                          {{ candidatesLoading() ? 'Searching…' : 'Find drivers' }}
+                        </button>
+                      </form>
+                      @if (candidateSearchError()) {
+                        <p class="form-error" role="alert">{{ candidateSearchError() }}</p>
+                      }
+                      @if (candidatesLoading() && !driverCandidatePage()) {
+                        <p class="loading-state" role="status">Searching driver records…</p>
+                      } @else if (driverCandidatePage(); as candidates) {
+                        @if (eligibleDrivers().length > 0) {
+                          <label class="assignment-driver-select">
+                            <span>Eligible driver</span>
+                            <select
+                              [ngModel]="selectedDriverId()"
+                              (ngModelChange)="selectedDriverId.set($event)"
+                              name="selectedDriver"
+                            >
+                              <option value="">Choose a driver</option>
+                              @for (driver of eligibleDrivers(); track driver.id) {
+                                <option [value]="driver.id">{{ driver.fullName }} · {{ driver.licenseCategory }} · {{ driver.phoneNumber }}</option>
+                              }
+                            </select>
+                          </label>
+                        } @else {
+                          <p class="assignment-empty">No active drivers with unexpired licenses matched on this page.</p>
+                        }
+                        @if (candidates.totalCount > 0) {
+                          <nav class="pagination candidate-pagination" aria-label="Eligible driver pages">
+                            <span>{{ candidates.totalCount }} matching drivers · Page {{ candidates.page }} of {{ candidateTotalPages() }}</span>
+                            <div>
+                              <button class="secondary-button" type="button" [disabled]="candidatesLoading() || candidates.page <= 1" (click)="goToCandidatePage(candidates.page - 1)">Previous</button>
+                              <button class="secondary-button" type="button" [disabled]="candidatesLoading() || candidates.page >= candidateTotalPages()" (click)="goToCandidatePage(candidates.page + 1)">Next</button>
+                            </div>
+                          </nav>
+                        }
+                      }
+                      <label class="assignment-notes">
+                        <span>Assignment note <span class="optional">(optional)</span></span>
+                        <textarea
+                          name="assignmentNotes"
+                          maxlength="500"
+                          rows="2"
+                          [ngModel]="assignmentNotes()"
+                          (ngModelChange)="assignmentNotes.set($event)"
+                        ></textarea>
+                      </label>
+                      <div class="assignment-form-actions">
+                        <button
+                          class="primary-button"
+                          type="button"
+                          [disabled]="!selectedDriverId() || assignmentSaving() || !driverCandidatePage() || vehicle.status !== activeVehicleStatus"
+                          (click)="assignDriver(vehicle)"
+                        >
+                          {{ assignmentSaving() ? 'Assigning…' : 'Confirm assignment' }}
+                        </button>
+                        <button class="text-button" type="button" [disabled]="assignmentSaving()" (click)="closeAssignmentForm()">Cancel</button>
+                      </div>
+                    </section>
+                  }
+                </div>
+              }
+            </section>
           </li>
         }
       </ul>

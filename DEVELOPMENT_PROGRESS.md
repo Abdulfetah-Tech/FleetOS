@@ -90,7 +90,7 @@ Configure an email provider and test the frontend against the real API with a ve
 
 ## Phase 4 — Core fleet operations
 
-**Status:** In progress; vehicle and driver management are connected operations workflows.
+**Status:** In progress; vehicle and driver management plus vehicle assignment are connected operations workflows.
 
 ### Completed in this slice
 
@@ -100,19 +100,20 @@ Configure an email provider and test the frontend against the real API with a ve
 - Unified vehicle endpoint errors with RFC Problem Details and removed duplicate EF Core mappings for trips and vehicle documents.
 - Added tenant-scoped driver search and pagination, owner-only create/edit/status/remove controls, and a license-expiry-aware driver directory.
 - Standardized driver missing-record errors as Problem Details and capped driver search at 100 characters; added regression checks for search validation and owner-only writes.
+- Added inline, lazy-loaded vehicle assignment controls with paginated eligible-driver search, owner-only assignment/end actions, and explicit retry/error states.
 
 ### Verification
 
 - Shared pagination boundary unit tests pass, including the maximum page value.
 - Angular production build passes without component-style budget warnings.
 - Vehicle tenant-isolation coverage verifies trusted tenant stamping, list isolation, cross-tenant not-found behavior, and protected deletion. Driver integration coverage verifies tenant separation, owner-only mutations, search limits, and Problem Details responses.
-- Backend test suite: 77 passed. Angular tests: 14 passed across 8 files. API build: zero warnings and errors.
-- Browser verification with intercepted API responses exercised vehicle and driver create/edit/status/remove and authenticated navigation. Dashboard and vehicle layouts were checked at 1440px, 768px, 390px, and 320px; the driver layout was rechecked at the same widths after its mobile navigation adjustment. Light/dark rendering showed no horizontal overflow.
+- Backend test suite: 77 passed. Angular tests: 17 passed across 9 files. API build: zero warnings and errors; Angular production build passes.
+- Browser verification with intercepted API responses exercised vehicle and driver create/edit/status/remove, the assignment 404/unassigned state, eligible-driver search, assignment, and authenticated navigation. Dashboard and vehicle layouts were checked at 1440px, 768px, 390px, and 320px; the assignment editor was checked at mobile and desktop widths. Light/dark rendering showed no horizontal overflow.
 
 ### Outstanding
 
-- Continue with assignment, trip, fuel, and maintenance workflows after the corresponding operation requirements and authorization boundaries are validated.
+- Continue with trip, fuel, and maintenance workflows after the corresponding operation requirements and authorization boundaries are validated.
 
 ### Next
 
-Verify driver workflows, then connect vehicle assignments.
+Continue with trip operations after validating their requirements and authorization boundaries.
