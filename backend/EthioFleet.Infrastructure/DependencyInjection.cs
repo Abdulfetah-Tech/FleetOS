@@ -55,8 +55,11 @@ public static class DependencyInjection
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<AppDbContext>()
             .AddDefaultTokenProviders();
+        services.Configure<DataProtectionTokenProviderOptions>(options =>
+            options.TokenLifespan = TimeSpan.FromHours(2));
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services.AddSingleton<IEmailSender, UnconfiguredEmailSender>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IDriverService, DriverService>();
         services.AddScoped<IVehicleAssignmentService, VehicleAssignmentService>();

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using EthioFleet.Application.Authentication;
 using EthioFleet.Domain.Common;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
@@ -21,6 +22,7 @@ public sealed class GlobalExceptionHandler(
         {
             ValidationException => (StatusCodes.Status400BadRequest, "Validation failed", "One or more validation errors occurred."),
             DomainException => (StatusCodes.Status400BadRequest, "Domain rule violated", exception.Message),
+            EmailDeliveryNotConfiguredException => (StatusCodes.Status503ServiceUnavailable, "Email delivery unavailable", exception.Message),
             UnauthorizedAccessException => (StatusCodes.Status403Forbidden, "Forbidden", "The request is not authorized."),
             DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "Concurrency conflict", "The resource was changed by another request."),
             DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } } =>

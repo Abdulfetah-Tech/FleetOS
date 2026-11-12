@@ -32,7 +32,7 @@ The solution references the projects under `backend/`. Similar project folders a
 
 ## Existing functionality
 
-- Tenant registration, login, JWT access tokens, hashed refresh tokens, refresh rotation, logout, role seeding, and account lockout.
+- Public tenant registration with email-confirmation enforcement, login, JWT access tokens, hashed refresh tokens, refresh rotation, logout, password reset, role seeding, and account lockout.
 - Organization-scoped persistence and API policies; tenant filters, tenant stamping/checks, soft deletion, audit timestamps, and optimistic concurrency.
 - Vehicle and driver records, vehicle-driver assignments, trip lifecycle, fuel records, maintenance records/schedules, inspections, vehicle documents, incidents, and in-app notifications.
 - Fleet dashboard summary, report query/CSV export, saved report filters, and a reminder background service.
@@ -42,8 +42,8 @@ The solution references the projects under `backend/`. Similar project folders a
 ## Missing or incomplete product scope
 
 - Angular currently contains only a landing/status shell; there are no login, fleet, dispatch, finance, or administration screens and no API client/auth flow.
-- Organizations are the current tenant boundary. Branches, permissions management, a super-administrator workflow, and the full requested role set are not implemented.
-- Email verification/reset delivery, SMS/email notification providers, immutable audit-log records, and production session/device management are absent.
+- Organizations are the current tenant boundary. Branches, permissions management, a super-administrator workflow, and the full requested role grants are not implemented. Requested role names are seeded, but most have no operation permissions yet.
+- No email provider is configured; email-dependent account workflows return an explicit service-unavailable response until an adapter is configured. SMS/email notification providers beyond the account email boundary, immutable audit-log records, and production session/device management are absent.
 - Revenue, general expenses, allowances, spare parts, route/geofence/GPS records, and live device/provider integrations are absent.
 - There is no AI provider abstraction or assistant. No AI behavior should be implied until implemented and evaluated.
 - PDF/Excel export, production analytics, end-to-end workflows, and production deployment/monitoring/backup configuration are not present.
@@ -60,7 +60,7 @@ The current architecture is a development foundation, not a production-complete 
 
 1. **Frontend readiness check:** It previously called `/api/v1/health` and expected a `service` response property. The API exposes `/health/ready` and returns `status` plus `checks`. The check has been corrected to match the actual API contract.
 2. **Local-only API address:** The Angular shell uses the launch profile's `http://localhost:5062`; deployment needs an environment-specific API origin and secure hosting/CORS configuration.
-3. **Account lifecycle:** Registration/login exist, but email is marked unconfirmed and there is no verification/reset delivery workflow. Define the desired onboarding policy before public launch.
+3. **Account email delivery:** Registration now requires email confirmation and password-reset workflows exist, but no email provider is configured. New accounts cannot sign in until a provider is wired and confirmation mail is delivered.
 4. **Incomplete authorization model:** Current policies cover the roles used by implemented operations, not the full product role/permission matrix.
 5. **Storage durability:** Vehicle documents use local private filesystem storage. Production needs durable, access-controlled object storage and operational backup/retention policies.
 6. **Financial correctness:** Dashboard costs group and return totals by currency, but comprehensive expense/revenue accounting and cross-currency conversion are not implemented.

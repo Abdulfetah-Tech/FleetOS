@@ -13,6 +13,8 @@ This roadmap extends the active codebase. Existing tested functionality should b
 
 ## Phase 2 — Backend and tenant foundation
 
+**Status: In progress. Account confirmation/reset APIs and role-name compatibility are implemented; branch hierarchy, immutable audit events, full role grants, and production migration procedure remain.**
+
 - Agree organization onboarding and account lifecycle, including email verification/reset delivery and administrative recovery.
 - Define the full role/permission matrix and cover it with authorization tests.
 - Add branch hierarchy, immutable audit events, and tenant-scoped documents/relationships where approved.

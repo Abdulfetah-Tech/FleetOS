@@ -1,4 +1,11 @@
 @EthioFleet.Api_HostAddress = http://localhost:5062
+@apiBase = {{EthioFleet.Api_HostAddress}}/api/v1
+@email = owner@example.test
+@password = ChangeThisPassword123!
+@accessToken = paste-access-token-here
+@refreshToken = paste-refresh-token-here
+@confirmationToken = paste-email-confirmation-token-here
+@passwordResetToken = paste-password-reset-token-here
 
 GET {{EthioFleet.Api_HostAddress}}/health/live
 Accept: application/json
@@ -7,5 +14,93 @@ Accept: application/json
 
 GET {{EthioFleet.Api_HostAddress}}/health/ready
 Accept: application/json
+
+###
+
+### Register a company; requires a configured email sender
+POST {{apiBase}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "userName": "fleet-owner",
+  "password": "{{password}}",
+  "organizationName": "Example Transport"
+}
+
+###
+
+### Confirm email using the token delivered by the configured sender
+POST {{apiBase}}/auth/confirm-email
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "token": "{{confirmationToken}}"
+}
+
+###
+
+### Resend confirmation instructions
+POST {{apiBase}}/auth/resend-confirmation
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+###
+
+### Login after email confirmation
+POST {{apiBase}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+###
+
+### Request password-reset instructions
+POST {{apiBase}}/auth/password-reset/request
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+###
+
+### Confirm password reset using the token delivered by the configured sender
+POST {{apiBase}}/auth/password-reset/confirm
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "token": "{{passwordResetToken}}",
+  "newPassword": "NewSecurePassword123!"
+}
+
+###
+
+### Rotate refresh token
+POST {{apiBase}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+
+### Logout and revoke refresh token
+POST {{apiBase}}/auth/logout
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
 
 ###

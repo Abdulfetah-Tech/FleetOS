@@ -23,8 +23,39 @@
 
 - Verify local PostgreSQL Compose startup and clean migration execution.
 - Replace the shell's fixed development API origin with deployment configuration when implementing the frontend foundation.
-- Define account verification/reset policy, full role matrix, and production storage/migration approach.
+- Define the full role matrix and production storage/migration approach.
 
 ### Next
 
-Begin Phase 2 by confirming tenant/account requirements, then add only the approved backend/authorization changes with migration and isolation tests. Preserve the existing fleet slices.
+Continue Phase 2 with authorization grants, branch scoping, immutable audit events, and migration/rollback validation. Preserve the existing fleet slices.
+
+## Phase 2 — Backend and tenant foundation
+
+**Status:** In progress; account lifecycle slice implemented.
+
+### Completed in this slice
+
+- Public registration now creates an unconfirmed company administrator and does not issue a session.
+- Email confirmation is required before login; resend-confirmation and password-reset endpoints use short-lived ASP.NET Core Identity tokens.
+- Password reset revokes active refresh tokens.
+- Added provider-neutral `IEmailSender`; the default implementation is explicitly unconfigured and returns HTTP 503 for email-dependent operations. Registration rolls back rather than creating an unusable unverified account.
+- Seeded the requested role names. New `CompanyAdministrator` tokens include `CompanyOwner` as a compatibility claim; the full permission mapping is not complete.
+- Duplicate registration responses no longer disclose whether an email is already registered.
+
+### Verification
+
+- Targeted registration/confirmation/refresh/logout and password-reset integration tests: 2 passed against PostgreSQL Testcontainers.
+- Tests cover login denial before confirmation, role compatibility, refresh-token revocation after password reset, and explicit unconfigured-provider errors plus rollback when delivery fails.
+- Full Release backend suite: 73 passed; build completed with zero warnings and errors.
+
+### Outstanding
+
+- Choose and implement an email provider; until then new registration and email-dependent account flows return 503.
+- Persist/share ASP.NET Core Data Protection keys in deployment before enabling email tokens across restarts or replicas.
+- Define and test actual permissions for Operations Manager, Dispatcher, Accountant, Driver, Read-only Analyst, and Super Administrator.
+- Implement branch scoping and immutable audit events with tenant-isolation tests.
+- Validate clean-database migration and rollback procedures.
+
+### Next
+
+Complete the role-to-operation matrix and authorization tests, then implement the approved branch and audit-log model.

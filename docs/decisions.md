@@ -23,3 +23,11 @@
 ## Product-spec availability
 
 `docs/product-spec.md` is a short outline; implementation follows verified code and explicit feature acceptance criteria rather than assuming unimplemented requirements exist.
+
+## Account lifecycle (2026-11-12)
+
+- New organizations use public self-registration, but users must confirm email before signing in.
+- Email delivery is behind a provider-neutral `IEmailSender` boundary. No provider or credentials are configured; account email operations fail explicitly with `503 Service Unavailable` until one is wired.
+- New accounts receive `CompanyAdministrator`. Access tokens also include `CompanyOwner` as a compatibility role claim; existing `CompanyOwner` assignments remain valid.
+- Email confirmation and password-reset tokens use ASP.NET Core Identity data-protection tokens with a two-hour lifetime. Password reset revokes refresh tokens; existing access JWTs remain valid until their short expiry.
+- Requested roles are seeded, but their endpoint permission matrix is not complete. `SuperAdministrator` is not granted cross-tenant access by this decision.

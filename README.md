@@ -45,6 +45,8 @@ The solution remains at the repository root. References point inward: API -> App
    dotnet user-secrets set "Authentication:Jwt:SigningKey" "<unique-secret-of-at-least-32-UTF-8-bytes>" --project .\backend\EthioFleet.Api\EthioFleet.Api.csproj
    ```
 
+   Account registration, confirmation resend, and password-reset requests require an email sender. No provider is configured by default, so those email-dependent endpoints return `503 Service Unavailable` until an `IEmailSender` implementation is registered.
+
 4. Restore, build, and test the backend:
 
    ```powershell

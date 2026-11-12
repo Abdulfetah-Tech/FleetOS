@@ -19,27 +19,31 @@ public sealed class AuthenticationService(
     UserManager<AppIdentityUser> userManager,
     RoleManager<IdentityRole<Guid>> roleManager,
     IOptions<JwtOptions> jwtOptions,
+    IEmailSender emailSender,
     IHttpContextAccessor httpContextAccessor,
     IClock clock) : IAuthenticationService
 {
     private readonly JwtOptions _options = jwtOptions.Value;
 
-    public async Task<AuthResult> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
+    public async Task<RegistrationResult> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.UserName)
             || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.OrganizationName))
         {
-            return AuthResult.Failure("Email, username, password, and organization name are required.");
+            return RegistrationResult.Failure("Email, username, password, and organization name are required.");
         }
 
+        EnsureEmailDeliveryIsConfigured();
         var email = request.Email.Trim();
         var normalizedEmail = userManager.NormalizeEmail(email);
-        if (await dbContext.Users.IgnoreQueryFilters().AnyAsync(user => user.NormalizedEmail == normalizedEmail, cancellationToken))
+        var existingUser = await dbContext.Users.IgnoreQueryFilters()
+            .SingleOrDefaultAsync(user => user.NormalizedEmail == normalizedEmail, cancellationToken);
+        if (existingUser is not null)
         {
-            return AuthResult.Failure("An account with this email already exists.");
+            return RegistrationResult.Success();
         }
 
-        await IdentitySeeder.EnsureRoleAsync(roleManager, "CompanyOwner");
+        await IdentitySeeder.EnsureRoleAsync(roleManager, "CompanyAdministrator");
         var organization = new Organization(request.OrganizationName, CreateOrganizationCode(), email, string.Empty, string.Empty);
         var user = new AppIdentityUser
         {
@@ -59,19 +63,116 @@ public sealed class AuthenticationService(
         if (!createResult.Succeeded)
         {
             await transaction.RollbackAsync(cancellationToken);
-            return AuthResult.Failure(string.Join(" ", createResult.Errors.Select(error => error.Description)));
+            return RegistrationResult.Failure(string.Join(" ", createResult.Errors.Select(error => error.Description)));
         }
 
-        var roleResult = await userManager.AddToRoleAsync(user, "CompanyOwner");
+        var roleResult = await userManager.AddToRoleAsync(user, "CompanyAdministrator");
         if (!roleResult.Succeeded)
         {
             await transaction.RollbackAsync(cancellationToken);
-            return AuthResult.Failure("Could not assign the organization owner role.");
+            return RegistrationResult.Failure("Could not assign the company administrator role.");
         }
 
-        var session = await CreateSessionAsync(user, cancellationToken, transactionAlreadyOpen: true);
+        var confirmationToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
+        await emailSender.SendAsync(new EmailMessage(
+            email,
+            "Confirm your EthioFleet account",
+            $"Use this token to confirm your email address:{Environment.NewLine}{confirmationToken}"), cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return session;
+        return RegistrationResult.Success();
+    }
+
+    public async Task<bool> ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Token))
+        {
+            return false;
+        }
+
+        var user = await userManager.FindByEmailAsync(request.Email.Trim());
+        if (user is null)
+        {
+            return false;
+        }
+
+        var result = await userManager.ConfirmEmailAsync(user, request.Token);
+        return result.Succeeded;
+    }
+
+    public async Task ResendConfirmationAsync(EmailRequest request, CancellationToken cancellationToken)
+    {
+        EnsureEmailDeliveryIsConfigured();
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return;
+        }
+
+        var user = await userManager.FindByEmailAsync(request.Email.Trim());
+        if (user is null || user.EmailConfirmed)
+        {
+            return;
+        }
+
+        await SendConfirmationEmailAsync(user, cancellationToken);
+    }
+
+    public async Task RequestPasswordResetAsync(EmailRequest request, CancellationToken cancellationToken)
+    {
+        EnsureEmailDeliveryIsConfigured();
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return;
+        }
+
+        var user = await userManager.FindByEmailAsync(request.Email.Trim());
+        if (user is null || !user.EmailConfirmed)
+        {
+            return;
+        }
+
+        var token = await userManager.GeneratePasswordResetTokenAsync(user);
+        await emailSender.SendAsync(new EmailMessage(
+            user.Email!,
+            "Reset your EthioFleet password",
+            $"Use this token to reset your password:{Environment.NewLine}{token}"), cancellationToken);
+    }
+
+    public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Token)
+            || string.IsNullOrWhiteSpace(request.NewPassword))
+        {
+            return false;
+        }
+
+        var user = await userManager.FindByEmailAsync(request.Email.Trim());
+        if (user is null || !user.EmailConfirmed)
+        {
+            return false;
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var result = await userManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
+        if (!result.Succeeded)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        await userManager.ResetAccessFailedCountAsync(user);
+        var activeTokens = await dbContext.RefreshTokens.IgnoreQueryFilters()
+            .Where(token => token.UserId == user.Id && token.RevokedAt == null)
+            .ToListAsync(cancellationToken);
+        foreach (var token in activeTokens)
+        {
+            token.RevokedAt = clock.UtcNow;
+            token.RevokedByIp = GetClientIp();
+        }
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return true;
     }
 
     public async Task<AuthResult> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
@@ -82,7 +183,7 @@ public sealed class AuthenticationService(
         }
 
         var user = await userManager.FindByEmailAsync(request.Email.Trim());
-        if (user is null || user.OrganizationId == Guid.Empty || user.LockoutEnd > clock.UtcNow)
+        if (user is null || user.OrganizationId == Guid.Empty || !user.EmailConfirmed || user.LockoutEnd > clock.UtcNow)
         {
             return AuthResult.Failure("Invalid email or password.");
         }
@@ -123,7 +224,7 @@ public sealed class AuthenticationService(
         }
 
         var user = await userManager.FindByIdAsync(stored.UserId.ToString());
-        if (user is null || user.OrganizationId != stored.OrganizationId || user.LockoutEnd > clock.UtcNow)
+        if (user is null || user.OrganizationId != stored.OrganizationId || !user.EmailConfirmed || user.LockoutEnd > clock.UtcNow)
         {
             stored.RevokedAt = clock.UtcNow;
             stored.RevokedByIp = GetClientIp();
@@ -205,6 +306,11 @@ public sealed class AuthenticationService(
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
         claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+        if (roles.Contains("CompanyAdministrator", StringComparer.Ordinal)
+            && !roles.Contains("CompanyOwner", StringComparer.Ordinal))
+        {
+            claims.Add(new Claim(ClaimTypes.Role, "CompanyOwner"));
+        }
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.SigningKey));
         var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
         var jwt = new JwtSecurityToken(_options.Issuer, _options.Audience, claims,
@@ -227,6 +333,23 @@ public sealed class AuthenticationService(
             token.RevokedByIp = GetClientIp();
         }
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task SendConfirmationEmailAsync(AppIdentityUser user, CancellationToken cancellationToken)
+    {
+        var token = await userManager.GenerateEmailConfirmationTokenAsync(user);
+        await emailSender.SendAsync(new EmailMessage(
+            user.Email!,
+            "Confirm your EthioFleet account",
+            $"Use this token to confirm your email address:{Environment.NewLine}{token}"), cancellationToken);
+    }
+
+    private void EnsureEmailDeliveryIsConfigured()
+    {
+        if (!emailSender.IsConfigured)
+        {
+            throw new EmailDeliveryNotConfiguredException();
+        }
     }
 
     private string GetClientIp() => httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown";

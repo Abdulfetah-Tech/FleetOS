@@ -22,7 +22,7 @@ flowchart LR
 - **`backend/EthioFleet.Api`** owns HTTP endpoints, authentication/authorization policies, middleware, health checks, and API composition.
 - **`backend/EthioFleet.Application`** defines use-case contracts, service interfaces, validation, and result types.
 - **`backend/EthioFleet.Domain`** owns entities, value objects, and business invariants without framework dependencies.
-- **`backend/EthioFleet.Infrastructure`** implements EF Core persistence, Identity/JWT services, filesystem document storage, reports, and background reminders.
+- **`backend/EthioFleet.Infrastructure`** implements EF Core persistence, Identity/JWT services, the unconfigured email-sender boundary, filesystem document storage, reports, and background reminders.
 - **`backend/EthioFleet.Tests`** contains domain/audit unit tests and API/database integration tests.
 - **`frontend/ethiofleet`** is an Angular 22 shell. It currently has no operational feature routes or API service layer.
 
@@ -38,6 +38,7 @@ flowchart LR
 
 - PostgreSQL 16 is the only container in the current Compose file.
 - Connection strings and JWT signing keys are configured through User Secrets/environment configuration; checked-in settings leave them empty.
+- New account registration requires email confirmation. The sender abstraction deliberately has no live provider implementation yet; affected account email operations fail explicitly with HTTP 503 rather than silently accepting undelivered messages.
 - CORS origins are explicitly configured. The Angular development shell currently calls the API launch-profile URL `http://localhost:5062`.
 - `/health/live` checks process liveness; `/health/ready` includes PostgreSQL readiness.
 - OpenAPI and Scalar are exposed only in Development.
@@ -64,6 +65,7 @@ The target diagram is a direction, not a claim that those services are connected
 - Frontend has no API base-URL configuration, auth/session service, or feature modules.
 - Organization exists as tenant; branch hierarchy and a complete permission model are absent.
 - Document storage is local disk and not appropriate for a horizontally scaled deployment.
+- Email confirmation/reset tokens depend on ASP.NET Core Data Protection keys; production must persist and share a protected key ring across restarts and API instances.
 - No production migration orchestration, secrets-vault configuration, backup/restore runbook, distributed work coordination, or monitoring export is configured.
 - GPS and AI provider boundaries are not implemented.
 

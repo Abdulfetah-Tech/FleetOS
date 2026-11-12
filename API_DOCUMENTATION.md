@@ -22,12 +22,22 @@
 
 | Method | Path | Access | Purpose |
 |---|---|---|---|
-| POST | `/api/v1/auth/register` | Anonymous; auth rate limit | Register organization owner and create a session |
+| POST | `/api/v1/auth/register` | Anonymous; auth rate limit | Register an organization and send an email-confirmation token; returns a generic `202 Accepted` without a session |
 | POST | `/api/v1/auth/login` | Anonymous; auth rate limit | Authenticate and create a session |
 | POST | `/api/v1/auth/refresh` | Anonymous; auth rate limit | Rotate refresh token and issue a new session |
 | POST | `/api/v1/auth/logout` | Authenticated | Revoke the supplied refresh token |
+| POST | `/api/v1/auth/confirm-email` | Anonymous; auth rate limit | Confirm the email using `{ "email": "...", "token": "..." }`; returns `204` on success |
+| POST | `/api/v1/auth/resend-confirmation` | Anonymous; auth rate limit | Request another confirmation message; returns a generic `202` response |
+| POST | `/api/v1/auth/password-reset/request` | Anonymous; auth rate limit | Request password-reset instructions; returns a generic `202` response |
+| POST | `/api/v1/auth/password-reset/confirm` | Anonymous; auth rate limit | Reset password using `{ "email": "...", "token": "...", "newPassword": "..." }`; returns `204` on success |
 
-Registration body: `email`, `userName`, `password`, `organizationName`. Login body: `email`, `password`. Refresh/logout body: `refreshToken`. Successful auth returns access/refresh tokens, expirations, and user/organization information. Refresh tokens are returned to clients but stored hashed server-side.
+Registration body: `email`, `userName`, `password`, `organizationName`. Registration does not return tokens; login is denied until email confirmation succeeds. Login body: `email`, `password`. Refresh/logout body: `refreshToken`. Successful login/refresh returns access/refresh tokens, expirations, and user/organization information. Refresh tokens are returned to clients but stored hashed server-side. Password reset revokes the account's active refresh tokens.
+
+Registration returns the same acceptance response when the email is already registered, so the endpoint does not confirm account existence. An existing account can use the confirmation-resend endpoint.
+
+The API currently registers a provider-neutral email sender boundary but no provider implementation. Email-dependent registration/resend/reset-request operations return `503 Service Unavailable` until one is configured; registration does not persist an account when delivery is unavailable. Email verification and password-reset tokens use ASP.NET Core Identity's data-protection token provider with a two-hour lifetime. Do not expose tokens in logs or client-visible error details.
+
+Production deployment must persist and share ASP.NET Core Data Protection keys across API instances and restarts or outstanding email tokens will become invalid.
 
 ## Current organization
 
@@ -87,6 +97,8 @@ Registration body: `email`, `userName`, `password`, `organizationName`. Login bo
 - `InspectionViewer`: CompanyOwner, FleetManager, or MaintenanceManager.
 - `InspectionSubmitter`: CompanyOwner, FleetManager, MaintenanceManager, or Driver.
 - `FinanceManager`: CompanyOwner or FinanceManager.
+
+New organization registrations receive the `CompanyAdministrator` identity role. Its access token includes the legacy `CompanyOwner` role claim so existing policies and clients continue to work. `CompanyOwner` remains seeded for existing users. Other requested roles are seeded as catalog entries, but their operation-level permissions are not yet granted; `SuperAdministrator` has no cross-tenant API access.
 
 Data access is also tenant-filtered. The policies and database filters are defense-in-depth, not a replacement for each other.
 

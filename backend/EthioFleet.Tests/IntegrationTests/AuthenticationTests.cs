@@ -8,10 +8,13 @@ using System.Text.Json;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.EntityFrameworkCore;
 using EthioFleet.Application.Notifications;
+using EthioFleet.Application.Authentication;
 using EthioFleet.Domain.Incidents;
 using EthioFleet.Domain.Inspections;
 using EthioFleet.Domain.Maintenance;
@@ -39,6 +42,7 @@ public sealed class AuthenticationTests : IAsyncLifetime
         .WithUsername("ethiofleet_test")
         .WithPassword("local-test-only")
         .Build();
+    private readonly RecordingEmailSender _emailSender = new();
     private WebApplicationFactory<Program>? _factory;
 
     public async Task InitializeAsync()
@@ -59,6 +63,11 @@ public sealed class AuthenticationTests : IAsyncLifetime
                     ["Authentication:Jwt:AccessTokenMinutes"] = "15",
                     ["Authentication:Jwt:RefreshTokenDays"] = "14"
                 });
+            });
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IEmailSender>();
+                services.AddSingleton<IEmailSender>(_emailSender);
             });
         });
 
@@ -1036,15 +1045,36 @@ public sealed class AuthenticationTests : IAsyncLifetime
             password = "ValidPass123!Secure",
             organizationName = "Auth Integration Test"
         });
-        Assert.Equal(HttpStatusCode.OK, registration.StatusCode);
-        using var registrationJson = JsonDocument.Parse(await registration.Content.ReadAsStringAsync());
-        var tokens = registrationJson.RootElement.GetProperty("tokens");
-        var accessToken = tokens.GetProperty("accessToken").GetString()!;
-        var firstRefresh = tokens.GetProperty("refreshToken").GetString()!;
-        Assert.False(string.IsNullOrWhiteSpace(accessToken));
+        Assert.Equal(HttpStatusCode.Accepted, registration.StatusCode);
+        Assert.Contains("Confirm your EthioFleet account", _emailSender.Messages.Single().Subject);
+        Assert.Equal(HttpStatusCode.Accepted, (await client.PostAsJsonAsync("/api/v1/auth/register", new
+        {
+            email,
+            userName = "another-name",
+            password = "ValidPass123!Secure",
+            organizationName = "Different Organization"
+        })).StatusCode);
+        Assert.Single(_emailSender.Messages);
 
+        var unconfirmedLogin = await client.PostAsJsonAsync("/api/v1/auth/login",
+            new { email, password = "ValidPass123!Secure" });
+        Assert.Equal(HttpStatusCode.Unauthorized, unconfirmedLogin.StatusCode);
+
+        var confirmation = await client.PostAsJsonAsync("/api/v1/auth/confirm-email", new
+        {
+            email,
+            token = GetEmailToken(_emailSender.Messages.Single())
+        });
+        Assert.Equal(HttpStatusCode.NoContent, confirmation.StatusCode);
         var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password = "ValidPass123!Secure" });
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        using var loginJson = JsonDocument.Parse(await login.Content.ReadAsStringAsync());
+        var accessToken = loginJson.RootElement.GetProperty("tokens").GetProperty("accessToken").GetString()!;
+        var firstRefresh = loginJson.RootElement.GetProperty("tokens").GetProperty("refreshToken").GetString()!;
+        Assert.Contains("CompanyAdministrator",
+            loginJson.RootElement.GetProperty("user").GetProperty("roles").EnumerateArray().Select(role => role.GetString()));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/v1/vehicles")).StatusCode);
 
         var rotated = await client.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = firstRefresh });
         Assert.Equal(HttpStatusCode.OK, rotated.StatusCode);
@@ -1060,6 +1090,99 @@ public sealed class AuthenticationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, replay.StatusCode);
         var revokedSession = await client.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = secondRefresh });
         Assert.Equal(HttpStatusCode.Unauthorized, revokedSession.StatusCode);
+    }
+
+    [Fact]
+    public async Task PasswordResetRevokesSessionsAndEmailDeliveryFailureIsExplicit()
+    {
+        using var client = _factory!.CreateClient();
+        var email = $"{Guid.NewGuid():N}@example.test";
+        var registration = await client.PostAsJsonAsync("/api/v1/auth/register", new
+        {
+            email,
+            userName = "password-reset-owner",
+            password = "ValidPass123!Secure",
+            organizationName = "Password Reset Integration Test"
+        });
+        Assert.Equal(HttpStatusCode.Accepted, registration.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync("/api/v1/auth/confirm-email", new
+        {
+            email,
+            token = GetEmailToken(_emailSender.Messages.Single())
+        })).StatusCode);
+
+        var beforeReset = await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password = "ValidPass123!Secure" });
+        using var beforeResetJson = JsonDocument.Parse(await beforeReset.Content.ReadAsStringAsync());
+        var beforeResetRefresh = beforeResetJson.RootElement.GetProperty("tokens").GetProperty("refreshToken").GetString()!;
+        Assert.Equal(HttpStatusCode.Accepted, (await client.PostAsJsonAsync("/api/v1/auth/password-reset/request",
+            new { email })).StatusCode);
+        var resetEmail = _emailSender.Messages.Last();
+        Assert.Contains("Reset your EthioFleet password", resetEmail.Subject);
+        var reset = await client.PostAsJsonAsync("/api/v1/auth/password-reset/confirm", new
+        {
+            email,
+            token = GetEmailToken(resetEmail),
+            newPassword = "AnotherPass123!Secure"
+        });
+        Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = beforeResetRefresh })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password = "ValidPass123!Secure" })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,
+            (await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password = "AnotherPass123!Secure" })).StatusCode);
+
+        var organizationsBefore = await ReadOrganizationCountAsync();
+        _emailSender.FailSend = true;
+        var failedDeliveryRegistration = await client.PostAsJsonAsync("/api/v1/auth/register", new
+        {
+            email = $"{Guid.NewGuid():N}@example.test",
+            userName = "delivery-failure-owner",
+            password = "ValidPass123!Secure",
+            organizationName = "Email Delivery Failure"
+        });
+        Assert.Equal(HttpStatusCode.InternalServerError, failedDeliveryRegistration.StatusCode);
+        Assert.Equal(organizationsBefore, await ReadOrganizationCountAsync());
+
+        _emailSender.FailSend = false;
+        _emailSender.IsConfigured = false;
+        var unavailableRegistration = await client.PostAsJsonAsync("/api/v1/auth/register", new
+        {
+            email = $"{Guid.NewGuid():N}@example.test",
+            userName = "unavailable-owner",
+            password = "ValidPass123!Secure",
+            organizationName = "Email Not Configured"
+        });
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, unavailableRegistration.StatusCode);
+        Assert.Equal(organizationsBefore, await ReadOrganizationCountAsync());
+    }
+
+    private static string GetEmailToken(EmailMessage message) =>
+        message.TextBody[(message.TextBody.IndexOf('\n') + 1)..].Trim();
+
+    private async Task<int> ReadOrganizationCountAsync()
+    {
+        await using var scope = _factory!.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<AppDbContext>().Organizations.CountAsync();
+    }
+
+    private sealed class RecordingEmailSender : IEmailSender
+    {
+        public bool IsConfigured { get; set; } = true;
+        public bool FailSend { get; set; }
+        public List<EmailMessage> Messages { get; } = [];
+
+        public Task SendAsync(EmailMessage message, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (FailSend)
+            {
+                throw new InvalidOperationException("Test email provider failure.");
+            }
+
+            Messages.Add(message);
+            return Task.CompletedTask;
+        }
     }
 
     [Fact]

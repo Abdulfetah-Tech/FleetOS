@@ -6,7 +6,12 @@ public static class IdentitySeeder
 {
     public static async Task SeedRolesAsync(RoleManager<IdentityRole<Guid>> roleManager)
     {
-        string[] roles = ["SystemAdmin", "CompanyOwner", "FleetManager", "MaintenanceManager", "FinanceManager", "Driver", "Employee"];
+        string[] roles =
+        [
+            "SuperAdministrator", "SystemAdmin", "CompanyAdministrator", "CompanyOwner",
+            "FleetManager", "OperationsManager", "Dispatcher", "Driver", "Accountant",
+            "MaintenanceManager", "ReadOnlyAnalyst", "Employee"
+        ];
         foreach (var roleName in roles)
         {
             if (await roleManager.RoleExistsAsync(roleName))
