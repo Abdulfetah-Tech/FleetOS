@@ -1,0 +1,85 @@
+<main class="vehicle-main" [attr.aria-busy]="loading()">
+  <header class="page-header">
+    <div><h1>Fuel</h1><p>Track fuel purchases and costs by vehicle</p></div>
+    @if (isCompanyOwner()) {
+      <button type="button" class="primary-button" [disabled]="loading() || saving() || !!deleting()" (click)="beginCreate()">Add fuel record</button>
+    }
+  </header>
+  @if (!canRead()) {
+    <p class="load-error" role="alert">Your account does not have permission to view fuel records.</p>
+  } @else {
+    @if (noticeMessage()) { <p class="success-message" role="status">{{ noticeMessage() }}</p> }
+    @if (errorMessage()) {
+      <section class="load-error" role="alert"><p>{{ errorMessage() }}</p><button type="button" [disabled]="loading()" (click)="loadRecords()">Try again</button></section>
+    }
+    <section class="list-toolbar" aria-label="Fuel filters">
+      <span>Vehicle: {{ filterVehicle()?.plateNumber ?? 'All vehicles' }}</span>
+      <button class="secondary-button" type="button" [disabled]="loading() || saving() || !!deleting()" (click)="openPicker('filter')">Filter by vehicle</button>
+      @if (filterVehicle()) { <button class="text-button" type="button" [disabled]="loading()" (click)="clearFilter()">Clear filter</button> }
+    </section>
+    @if (pickerMode()) {
+      <section class="vehicle-form-section" aria-labelledby="fuel-vehicle-heading">
+        <div class="form-heading"><h2 id="fuel-vehicle-heading">{{ pickerMode() === 'create' ? 'Choose purchase vehicle' : 'Choose filter vehicle' }}</h2><button type="button" class="text-button" (click)="pickerMode.set(null)">Close vehicle picker</button></div>
+        <div class="search-form" role="search">
+          <label for="fuel-vehicle-search">Search vehicles</label>
+          <input id="fuel-vehicle-search" type="search" maxlength="100" placeholder="Plate, make, or model" [formControl]="vehicleSearch" (keydown.enter)="$event.preventDefault(); loadVehicles(1)" />
+          <button class="secondary-button" type="button" [disabled]="vehicleLoading() || vehicleSearch.invalid" (click)="loadVehicles(1)">Search vehicles</button>
+        </div>
+        @if (vehicleLoading()) { <p class="loading-state" role="status">Loading vehicles…</p> }
+        @if (vehicleError()) { <p class="form-error" role="alert">{{ vehicleError() }}</p><button type="button" class="secondary-button" (click)="loadVehicles()">Retry vehicle search</button> }
+        @if (!vehicleLoading() && vehiclePage(); as choices) {
+          @if (choices.items.length === 0) { <p class="empty-state">No vehicles matched. Try another search.</p> }
+          <div class="fuel-vehicle-choices">
+            @for (vehicle of choices.items; track vehicle.id) {
+              <button class="secondary-button" type="button" (click)="selectVehicle(vehicle)">{{ vehicle.plateNumber }} · {{ vehicle.make }} {{ vehicle.model }}</button>
+            }
+          </div>
+          <nav class="pagination" aria-label="Vehicle search pages">
+            <span>{{ choices.totalCount }} vehicles · Page {{ choices.page }} of {{ vehiclePages() }}</span>
+            <div><button class="secondary-button" type="button" [disabled]="choices.page <= 1" (click)="goToVehiclePage(choices.page - 1)">Previous vehicles</button><button class="secondary-button" type="button" [disabled]="choices.page >= vehiclePages()" (click)="goToVehiclePage(choices.page + 1)">Next vehicles</button></div>
+          </nav>
+        }
+      </section>
+    }
+    @if (formOpen() && isCompanyOwner()) {
+      <section class="vehicle-form-section" aria-labelledby="fuel-form-heading">
+        <div class="form-heading"><h2 id="fuel-form-heading">Add fuel record</h2><button class="text-button" type="button" [disabled]="saving()" (click)="closeForm()">Cancel</button></div>
+        @if (formError()) { <p class="form-error" role="alert">{{ formError() }}</p> }
+        <form [formGroup]="form" (ngSubmit)="createRecord()">
+          <fieldset [disabled]="saving()">
+            <legend>Purchase details</legend>
+            <p>Vehicle: <strong>{{ createVehicle()?.plateNumber ?? 'Not selected' }}</strong></p>
+            <button class="secondary-button" type="button" (click)="openPicker('create')">Choose vehicle</button>
+            @if (invalid('vehicleId')) { <p class="form-error">Choose a vehicle.</p> }
+            <div class="form-grid">
+              <label><span>Purchase date and time (local)</span><input name="occurredAt" type="datetime-local" formControlName="occurredAt" [attr.aria-invalid]="invalid('occurredAt')" />@if (invalid('occurredAt')) { <span class="form-error">Enter a valid local date and time.</span> }</label>
+              <label><span>Quantity (liters)</span><input name="quantityLiters" type="number" min="0.001" step="0.001" formControlName="quantityLiters" [attr.aria-invalid]="invalid('quantityLiters')" />@if (invalid('quantityLiters')) { <span class="form-error">Enter a positive quantity with at most 3 decimal places.</span> }</label>
+              <label><span>Unit price per liter</span><input name="unitPrice" type="number" min="0" step="0.01" formControlName="unitPrice" [attr.aria-invalid]="invalid('unitPrice')" />@if (invalid('unitPrice')) { <span class="form-error">Enter a non-negative price with at most 2 decimal places.</span> }</label>
+              <label><span>Odometer (km)</span><input name="odometer" type="number" [min]="createVehicle()?.currentMileage ?? 0" step="0.1" formControlName="odometer" [attr.aria-invalid]="invalid('odometer')" />@if (invalid('odometer')) { <span class="form-error">Use at most 1 decimal place and at least the current vehicle mileage ({{ createVehicle()?.currentMileage ?? 0 }} km).</span> }</label>
+              <label><span>Currency</span><input name="currencyCode" formControlName="currencyCode" maxlength="3" [attr.aria-invalid]="invalid('currencyCode')" />@if (invalid('currencyCode')) { <span class="form-error">Enter a three-letter currency code, such as ETB.</span> }</label>
+              <label><span>Station (optional)</span><input name="station" formControlName="station" maxlength="160" />@if (invalid('station')) { <span class="form-error">Maximum 160 characters.</span> }</label>
+              <label><span>Receipt reference (optional)</span><input name="receiptReference" formControlName="receiptReference" maxlength="100" />@if (invalid('receiptReference')) { <span class="form-error">Maximum 100 characters.</span> }</label>
+              <label><span>Notes (optional)</span><textarea name="notes" formControlName="notes" maxlength="1000"></textarea>@if (invalid('notes')) { <span class="form-error">Maximum 1000 characters.</span> }</label>
+            </div>
+            <button class="primary-button" type="submit" [disabled]="saving() || form.invalid">{{ saving() ? 'Saving…' : 'Save fuel record' }}</button>
+          </fieldset>
+        </form>
+      </section>
+    }
+    <section class="vehicle-list-section" aria-labelledby="fuel-list-heading">
+      <div class="list-heading"><h2 id="fuel-list-heading">Fuel records</h2></div>
+      @if (loading()) { <p class="loading-state" role="status">Loading fuel records…</p> }
+      @else if (records(); as result) {
+        @if (result.items.length === 0) { <p class="empty-state">No fuel records found{{ filterVehicle() ? ' for this vehicle' : '' }}.</p> }
+        @else {
+          <div class="table-scroll"><table class="vehicle-table"><thead><tr><th scope="col">Vehicle / date</th><th scope="col">Quantity</th><th scope="col">Unit price</th><th scope="col">Total cost</th><th scope="col">Odometer</th><th scope="col">Details</th>@if (isCompanyOwner()) { <th scope="col">Actions</th> }</tr></thead><tbody>
+            @for (record of result.items; track record.id) {
+              <tr><td><strong>{{ record.vehiclePlateNumber }}</strong><br />{{ formatDate(record.occurredAt) }}</td><td>{{ formatNumber(record.quantityLiters, 3) }} L</td><td>{{ formatCost(record.unitPrice, record.currencyCode) }}</td><td>{{ formatCost(record.totalCost, record.currencyCode) }}</td><td>{{ formatNumber(record.odometer, 1) }} km</td><td><div>Station: {{ record.station || '—' }}</div><div>Receipt: {{ record.receiptReference || '—' }}</div><div>{{ record.notes }}</div></td>@if (isCompanyOwner()) { <td><button class="text-button" type="button" [disabled]="!!deleting() || saving()" (click)="deleteRecord(record)">{{ deleting() === record.id ? 'Deleting…' : 'Delete' }}</button></td> }</tr>
+            }
+          </tbody></table></div>
+        }
+        <nav class="pagination" aria-label="Fuel record pages"><span>{{ result.totalCount }} records · Page {{ page() }} of {{ totalPages() }}</span><div><button type="button" class="secondary-button" [disabled]="page() <= 1 || !!deleting()" (click)="goToPage(page() - 1)">Previous</button><button type="button" class="secondary-button" [disabled]="page() >= totalPages() || !!deleting()" (click)="goToPage(page() + 1)">Next</button></div></nav>
+      }
+    </section>
+  }
+</main>

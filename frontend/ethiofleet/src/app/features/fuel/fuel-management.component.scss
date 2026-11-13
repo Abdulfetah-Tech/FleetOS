@@ -1,0 +1,17 @@
+@use '../vehicles/vehicle-management.styles';
+
+// Reuse the vehicle screen rules without changing the shared stylesheet.
+:host {
+  @extend app-vehicle-management;
+}
+
+.fuel-vehicle-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 16px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
