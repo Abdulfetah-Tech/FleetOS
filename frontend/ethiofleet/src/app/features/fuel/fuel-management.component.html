@@ -1,0 +1,67 @@
+<div class="fuel-management">
+  <h2>Fuel Management</h2>
+
+  <form [formGroup]="fuelForm" (ngSubmit)="onSubmit()" class="fuel-form">
+    <div class="form-row">
+      <label for="date">Date</label>
+      <input id="date" type="date" formControlName="date" />
+    </div>
+    <div class="form-row">
+      <label for="vehicleId">Vehicle</label>
+      <select id="vehicleId" formControlName="vehicleId">
+        <option *ngFor="let v of vehicles" [value]="v.id">{{ v.plateNumber }}</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="driverId">Driver</label>
+      <select id="driverId" formControlName="driverId">
+        <option *ngFor="let d of drivers" [value]="d.id">{{ d.fullName }}</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="quantity">Quantity (L)</label>
+      <input id="quantity" type="number" formControlName="quantity" step="0.01" />
+    </div>
+    <div class="form-row">
+      <label for="unitPrice">Unit Price</label>
+      <input id="unitPrice" type="number" formControlName="unitPrice" step="0.01" />
+    </div>
+    <div class="form-row">
+      <label for="odometer">Odometer</label>
+      <input id="odometer" type="number" formControlName="odometer" />
+    </div>
+    <button type="submit" [disabled]="fuelForm.invalid">Add Fuel Record</button>
+  </form>
+
+  <hr />
+
+  <h3>Fuel Records</h3>
+  <table class="fuel-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Vehicle</th>
+        <th>Driver</th>
+        <th>Quantity</th>
+        <th>Unit Price</th>
+        <th>Total</th>
+        <th>Odometer</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let f of fuelRecords">
+        <td>{{ f.date | date }}</td>
+        <td>{{ f.vehiclePlate }}</td>
+        <td>{{ f.driverName }}</td>
+        <td>{{ f.quantity }}</td>
+        <td>{{ f.unitPrice | currency }}</td>
+        <td>{{ (f.quantity * f.unitPrice) | currency }}</td>
+        <td>{{ f.odometer }}</td>
+        <td>
+          <button (click)="deleteFuel(f.id)" class="danger">Delete</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,63 @@
+.fuel-management {
+  padding: 1rem;
+}
+
+.fuel-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.fuel-form .form-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.fuel-form label {
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.fuel-form input,
+.fuel-form select {
+  padding: 0.4rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.fuel-form button {
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 0.6rem 1.2rem;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.fuel-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.fuel-table th,
+.fuel-table td {
+  padding: 0.5rem;
+  border: 1px solid #e0e0e0;
+  text-align: left;
+}
+
+.fuel-table th {
+  background-color: #f5f5f5;
+}
+
+.fuel-table .danger {
+  background-color: #d32f2f;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
