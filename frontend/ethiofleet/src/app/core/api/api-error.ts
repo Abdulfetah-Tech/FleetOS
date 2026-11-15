@@ -1,8 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
-export function getApiMessage(error: unknown): string | undefined {
+export function getApiMessage(error: unknown, fallback?: string): string {
   if (!(error instanceof HttpErrorResponse) || typeof error.error !== 'object' || error.error === null) {
-    return undefined;
+    return fallback ?? 'An unexpected error occurred.';
   }
 
   if ('error' in error.error && typeof error.error.error === 'string') {
@@ -13,5 +13,5 @@ export function getApiMessage(error: unknown): string | undefined {
     return error.error.detail;
   }
 
-  return undefined;
+  return fallback ?? 'An unexpected error occurred.';
 }

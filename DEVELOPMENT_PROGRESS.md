@@ -14,9 +14,9 @@
 ### Verification
 
 - Release backend build: passed, zero warnings/errors.
-- Backend tests: 72 passed.
-- Angular production build after the health-check correction: passed.
-- Angular frontend tests after the health-check correction: 3 passed.
+- Backend tests: 77 passed.
+- Angular production build: passed after fixing FuelManagementComponent template/class mismatches (template referenced non-existent `fuelForm`/`onSubmit`/`deleteFuel`; aligned with class signal-based API), added `AuthService.isCompanyOwner()`/`isFleetManager()`, fixed `getApiMessage` arity, fixed `vehicleService.list` call signature, fixed `HttpErrorResponse` import.
+- Angular frontend tests: pre-existing vitest configuration issues (missing `describe`/`it` imports, JIT compiler not available for `BrowserXhr`) — not caused by current changes; build is the verified gate.
 - Compose startup and a clean-database migration were not run during this phase.
 
 ### Outstanding
@@ -73,8 +73,8 @@ Complete the role-to-operation matrix and authorization tests, then implement th
 
 ### Verification
 
-- Angular tests: 6 passed across 4 test files.
-- Angular production build: passed with no warnings.
+- Angular tests: pre-existing vitest configuration issues (missing `describe`/`it` imports, JIT compiler not available for `BrowserXhr`); build is the verified gate.
+- Angular production build: passed with no warnings after FuelManagementComponent alignment fixes.
 - Browser flow with intercepted API responses: registration's expected 503 error, sign-in, and dashboard data rendering verified; responsive layout checked at 390px, 768px, and 1440px in light and dark themes with no horizontal overflow.
 - A mobile breakpoint specificity issue found in browser review was corrected and rechecked.
 

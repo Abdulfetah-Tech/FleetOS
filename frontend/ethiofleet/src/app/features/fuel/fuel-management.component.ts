@@ -1,9 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
-import { RouterLink } from '@angular/router';
 import { getApiMessage } from '../../core/api/api-error';
 import { AuthService } from '../../core/auth/auth.service';
 import { VehicleAssignmentService } from '../../core/assignments/vehicle-assignment.service';
@@ -25,7 +24,7 @@ interface FuelForm {
 @Component({
   selector: 'app-fuel-management',
   standalone: true,
-  imports: [FormsModule, RouterLink, DatePipe, DecimalPipe],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, CurrencyPipe],
   host: { class: 'fuel-management' },
   templateUrl: './fuel-management.component.html',
 })
@@ -46,6 +45,7 @@ export class FuelManagementComponent implements OnInit {
   protected readonly noticeMessage = signal<string | null>(null);
   protected readonly formOpen = signal(false);
   protected readonly selectedVehicle = signal<Vehicle | null>(null);
+  protected readonly selectedVehicleId = signal<string | null>(null);
   protected readonly vehicleSearchText = signal('');
   protected readonly filterVehicleId = signal<string | null>(null);
   protected readonly page = signal(1);
@@ -154,7 +154,7 @@ export class FuelManagementComponent implements OnInit {
   searchVehicles(): void {
     this.vehicleChoicesLoading.set(true);
     this.vehicleService
-      .list({ page: 1, pageSize: 25, search: this.vehicleSearchText().trim() || null })
+      .list(1, 25, this.vehicleSearchText().trim() || '')
       .pipe(finalize(() => this.vehicleChoicesLoading.set(false)))
       .subscribe({
         next: (page) => this.vehiclePage.set(page),
@@ -165,7 +165,21 @@ export class FuelManagementComponent implements OnInit {
 
   chooseVehicle(vehicle: Vehicle): void {
     this.selectedVehicle.set(vehicle);
+    this.selectedVehicleId.set(vehicle.id);
     this.form.odometer = vehicle.currentMileage;
+  }
+
+  onVehicleSelected(vehicleId: string | null): void {
+    this.selectedVehicleId.set(vehicleId);
+    if (vehicleId) {
+      const vehicle = this.vehiclePage()?.items.find((v) => v.id === vehicleId) ?? null;
+      this.selectedVehicle.set(vehicle);
+      if (vehicle) {
+        this.form.odometer = vehicle.currentMileage;
+      }
+    } else {
+      this.selectedVehicle.set(null);
+    }
   }
 
   submitFuelRecord(): void {

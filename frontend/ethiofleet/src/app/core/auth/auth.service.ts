@@ -23,6 +23,19 @@ export class AuthService {
 
   readonly session = this.sessionState.asReadonly();
 
+  isCompanyOwner(): boolean {
+    return this.hasRole('CompanyOwner');
+  }
+
+  isFleetManager(): boolean {
+    return this.hasRole('CompanyOwner') || this.hasRole('FleetManager');
+  }
+
+  private hasRole(role: string): boolean {
+    const session = this.sessionState();
+    return session?.user.roles.includes(role) ?? false;
+  }
+
   currentSession(): AuthSession | null {
     return this.sessionState();
   }
