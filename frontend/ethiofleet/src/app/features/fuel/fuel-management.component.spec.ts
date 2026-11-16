@@ -1,5 +1,67 @@
 
-declare var spyOn: any;
+// Minimal Jasmine-like test helpers for this spec
+const jasmine = {
+  createSpy: (name: string) => {
+    const fn: any = (...args: any[]) => {
+      fn.calls.push(args);
+      return fn.and?.returnValue;
+    };
+    fn.calls = [] as any[];
+    fn.and = {
+      returnValue: (val: any) => {
+        fn.and.returnValue = val;
+        return fn;
+      },
+    };
+    return fn;
+  },
+};
+
+function spyOn(obj: any, method: string) {
+  const original = obj[method];
+  const spy = jasmine.createSpy(method);
+  obj[method] = spy;
+  return {
+    and: {
+      returnValue: (val: any) => {
+        spy.and.returnValue = val;
+        return spy;
+      },
+      callThrough: () => {
+        obj[method] = original;
+        return spy;
+      },
+    },
+  };
+}
+
+function expect(actual: any) {
+  return {
+    toHaveBeenCalled: () => {
+      if (!actual.calls || actual.calls.length === 0) {
+        throw new Error('Expected spy to have been called');
+      }
+    },
+    toHaveBeenCalledWith: (...expected: any[]) => {
+      const called = actual.calls?.some((c: any) => JSON.stringify(c) === JSON.stringify(expected));
+      if (!called) {
+        throw new Error(`Expected spy to have been called with ${JSON.stringify(expected)}`);
+      }
+    },
+    toBeTruthy: () => {
+      if (!actual) {
+        throw new Error('Expected value to be truthy');
+      }
+    },
+    toBe: (value: any) => {
+      if (actual !== value) {
+        throw new Error(`Expected ${actual} to be ${value}`);
+      }
+    },
+  };
+}
+
+
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FuelManagementComponent } from './fuel-management.component';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
