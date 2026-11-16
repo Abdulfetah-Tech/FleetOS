@@ -35,7 +35,7 @@ export class FuelManagementComponent implements OnInit {
   private readonly auth = inject(AuthService);
 
   protected readonly fuelPage = signal<FuelRecordPage | null>(null);
-  protected readonly vehiclePage = signal<VehiclePage | null>(null);
+  public readonly vehiclePage = signal<VehiclePage | null>(null);
   protected readonly loading = signal(false);
   protected readonly vehicleChoicesLoading = signal(false);
   protected readonly saving = signal(false);
