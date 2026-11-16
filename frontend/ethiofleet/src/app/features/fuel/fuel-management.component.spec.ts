@@ -1,6 +1,5 @@
-declare var jasmine: any;
+
 declare var spyOn: any;
-import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FuelManagementComponent } from './fuel-management.component';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
@@ -12,50 +11,24 @@ import { AuthService } from '../../core/auth/auth.service';
 import { of } from 'rxjs';
 import { Vehicle } from '../../core/vehicles/vehicle.models';
 
-// Mock services
+// Mock services without jasmine spies
 class MockFuelService {
-  list = jasmine.createSpy('list').and.returnValue(of({ items: [], totalCount: 0, page: 1, pageSize: 20 }));
-  create = jasmine.createSpy('create').and.returnValue(of({ id: '1', vehiclePlateNumber: 'ABC-123', quantityLiters: 10, totalCost: 850, driverName: null }));
-  delete = jasmine.createSpy('delete').and.returnValue(of(null));
+  list() { return of({ items: [], totalCount: 0, page: 1, pageSize: 20 }); }
+  create() { return of({ id: '1', vehiclePlateNumber: 'ABC-123', quantityLiters: 10, totalCost: 850, driverName: null }); }
+  delete() { return of(null); }
 }
 
 class MockVehicleService {
-  list = jasmine.createSpy('list').and.returnValue(
-    of({
-      items: [
-        {
-          id: 'veh1',
-          plateNumber: 'ABC-123',
-          currentMileage: 1000,
-          organizationId: 'org1',
-          make: 'Make',
-          model: 'Model',
-          year: 2020,
-          vehicleStatus: 'Active',
-          type: 'Truck',
-          fuelType: 'Diesel',
-          vin: 'VIN123',
-          status: 'Active',
-          purchaseDate: new Date().toISOString(),
-          currencyCode: 'ETB',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        } as unknown as Vehicle,
-      ],
-      totalCount: 1,
-      page: 1,
-      pageSize: 25,
-    })
-  );
+  list() { return of({ items: [{ id: 'veh1', plateNumber: 'ABC-123', currentMileage: 1000, organizationId: 'org1', make: 'Make', model: 'Model', year: 2020, vehicleStatus: 'Active', type: 'Truck', fuelType: 'Diesel', vin: 'VIN123', status: 'Active', purchaseDate: new Date().toISOString(), currencyCode: 'ETB', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as unknown as Vehicle], totalCount: 1, page: 1, pageSize: 25 }); }
 }
 
 class MockVehicleAssignmentService {
-  getActive = jasmine.createSpy('getActive').and.returnValue(of({ driverId: null }));
+  getActive() { return of({ driverId: null }); }
 }
 
 class MockAuthService {
-  isCompanyOwner = jasmine.createSpy('isCompanyOwner').and.returnValue(true);
-  isFleetManager = jasmine.createSpy('isFleetManager').and.returnValue(true);
+  isCompanyOwner = () => true;
+  isFleetManager = () => true;
 }
 
 describe('FuelManagementComponent', () => {
@@ -68,8 +41,7 @@ describe('FuelManagementComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, ReactiveFormsModule],
-      declarations: [FuelManagementComponent],
+      imports: [HttpClientTestingModule, ReactiveFormsModule, FuelManagementComponent],
       providers: [
         { provide: FuelService, useClass: MockFuelService },
         { provide: VehicleService, useClass: MockVehicleService },
