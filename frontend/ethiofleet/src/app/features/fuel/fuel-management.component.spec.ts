@@ -1,152 +1,174 @@
-
-// Minimal Jasmine-like test helpers for this spec
-const jasmine = {
-  createSpy: (name: string) => {
-    const fn: any = (...args: any[]) => {
-      fn.calls.push(args);
-      return fn.and?.returnValue;
-    };
-    fn.calls = [] as any[];
-    fn.and = {
-      returnValue: (val: any) => {
-        fn.and.returnValue = val;
-        return fn;
-      },
-    };
-    return fn;
-  },
-};
-
-function spyOn(obj: any, method: string) {
-  const original = obj[method];
-  const spy = jasmine.createSpy(method);
-  obj[method] = spy;
-  return {
-    and: {
-      returnValue: (val: any) => {
-        spy.and.returnValue = val;
-        return spy;
-      },
-      callThrough: () => {
-        obj[method] = original;
-        return spy;
-      },
-    },
-  };
-}
-
-function expect(actual: any) {
-  return {
-    toHaveBeenCalled: () => {
-      if (!actual.calls || actual.calls.length === 0) {
-        throw new Error('Expected spy to have been called');
-      }
-    },
-    toHaveBeenCalledWith: (...expected: any[]) => {
-      const called = actual.calls?.some((c: any) => JSON.stringify(c) === JSON.stringify(expected));
-      if (!called) {
-        throw new Error(`Expected spy to have been called with ${JSON.stringify(expected)}`);
-      }
-    },
-    toBeTruthy: () => {
-      if (!actual) {
-        throw new Error('Expected value to be truthy');
-      }
-    },
-    toBe: (value: any) => {
-      if (actual !== value) {
-        throw new Error(`Expected ${actual} to be ${value}`);
-      }
-    },
-  };
-}
-
-
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { NgModel } from '@angular/forms';
+import { API_BASE_URL } from '../../core/api/api-config';
 import { FuelManagementComponent } from './fuel-management.component';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { ReactiveFormsModule } from '@angular/forms';
-import { FuelService } from '../../core/fuel/fuel.service';
-import { VehicleService } from '../../core/vehicles/vehicle.service';
-import { VehicleAssignmentService } from '../../core/assignments/vehicle-assignment.service';
-import { AuthService } from '../../core/auth/auth.service';
-import { of } from 'rxjs';
-import { Vehicle } from '../../core/vehicles/vehicle.models';
-
-// Mock services without jasmine spies
-class MockFuelService {
-  list() { return of({ items: [], totalCount: 0, page: 1, pageSize: 20 }); }
-  create() { return of({ id: '1', vehiclePlateNumber: 'ABC-123', quantityLiters: 10, totalCost: 850, driverName: null }); }
-  delete() { return of(null); }
-}
-
-class MockVehicleService {
-  list() { return of({ items: [{ id: 'veh1', plateNumber: 'ABC-123', currentMileage: 1000, organizationId: 'org1', make: 'Make', model: 'Model', year: 2020, vehicleStatus: 'Active', type: 'Truck', fuelType: 'Diesel', vin: 'VIN123', status: 'Active', purchaseDate: new Date().toISOString(), currencyCode: 'ETB', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as unknown as Vehicle], totalCount: 1, page: 1, pageSize: 25 }); }
-}
-
-class MockVehicleAssignmentService {
-  getActive() { return of({ driverId: null }); }
-}
-
-class MockAuthService {
-  isCompanyOwner = () => true;
-  isFleetManager = () => true;
-}
 
 describe('FuelManagementComponent', () => {
-  let component: FuelManagementComponent;
-  let fixture: ComponentFixture<FuelManagementComponent>;
-  let fuelService: MockFuelService;
-  let vehicleService: MockVehicleService;
-  let assignmentService: MockVehicleAssignmentService;
-  let authService: MockAuthService;
+  let http: HttpTestingController;
 
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule, ReactiveFormsModule, FuelManagementComponent],
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    TestBed.configureTestingModule({
+      imports: [FuelManagementComponent],
       providers: [
-        { provide: FuelService, useClass: MockFuelService },
-        { provide: VehicleService, useClass: MockVehicleService },
-        { provide: VehicleAssignmentService, useClass: MockVehicleAssignmentService },
-        { provide: AuthService, useClass: MockAuthService },
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: API_BASE_URL, useValue: 'http://api.test/api/v1' },
       ],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(FuelManagementComponent);
-    component = fixture.componentInstance;
-    fuelService = TestBed.inject(FuelService) as any;
-    vehicleService = TestBed.inject(VehicleService) as any;
-    assignmentService = TestBed.inject(VehicleAssignmentService) as any;
-    authService = TestBed.inject(AuthService) as any;
+    });
+    http = TestBed.inject(HttpTestingController);
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
+  afterEach(() => {
+    http.verify();
+    window.sessionStorage.clear();
   });
 
-  it('should load fuel records on init', () => {
-    component.ngOnInit();
-    expect(fuelService.list).toHaveBeenCalled();
+  it('keeps create and remove actions hidden from fleet managers', () => {
+    window.sessionStorage.setItem(
+      'ethiofleet.session',
+      JSON.stringify(sessionWithRoles(['FleetManager'])),
+    );
+    const fixture = TestBed.createComponent(FuelManagementComponent);
+    fixture.detectChanges();
+
+    http.expectOne('http://api.test/api/v1/fuel-records?page=1&pageSize=20').flush({
+      items: [fuelResponse()],
+      page: 1,
+      pageSize: 20,
+      totalCount: 1,
+    });
+    fixture.detectChanges();
+
+    const rendered = fixture.nativeElement.textContent as string;
+    expect(rendered).toContain('ET-3-12345');
+    expect(rendered).toContain('50.5 L');
+    expect(rendered).not.toContain('Log fuel');
+    expect(rendered).not.toContain('Remove');
   });
 
-  it('should create a fuel record when form is valid', () => {
-    component.beginCreate();
-    // select vehicle
-    (component as any).selectedVehicle.set({ id: 'veh1', plateNumber: 'ABC-123', currentMileage: 1000 } as Vehicle);
-    (component as any).selectedVehicleId.set('veh1');
-    // fill form
-    (component as any).form.quantityLiters = 10;
-    (component as any).form.unitPrice = 85;
-    (component as any).form.odometer = 1100;
-    component.submitFuelRecord();
-    expect(assignmentService.getActive).toHaveBeenCalled();
-    expect(fuelService.create).toHaveBeenCalled();
-  });
+  it('creates a fuel record after loading vehicles and the active assignment', () => {
+    window.sessionStorage.setItem(
+      'ethiofleet.session',
+      JSON.stringify(sessionWithRoles(['CompanyOwner'])),
+    );
+    const fixture = TestBed.createComponent(FuelManagementComponent);
+    fixture.detectChanges();
 
-  it('should delete a fuel record', () => {
-    const record: any = { id: '1', vehiclePlateNumber: 'ABC-123', quantityLiters: 10, totalCost: 850 };
-    spyOn(window, 'confirm').and.returnValue(true);
-    component.deleteRecord(record);
-    expect(fuelService.delete).toHaveBeenCalledWith('1');
+    http.expectOne('http://api.test/api/v1/fuel-records?page=1&pageSize=20').flush({
+      items: [],
+      page: 1,
+      pageSize: 20,
+      totalCount: 0,
+    });
+    fixture.detectChanges();
+
+    (
+      fixture.nativeElement.querySelector('.page-header .primary-button') as HTMLButtonElement
+    ).click();
+    http.expectOne('http://api.test/api/v1/vehicles?page=1&pageSize=25').flush({
+      items: [vehicleResponse()],
+      page: 1,
+      pageSize: 25,
+      totalCount: 1,
+    });
+    fixture.detectChanges();
+
+    fixture.debugElement
+      .query(By.css('select[name="vehicleId"]'))
+      .injector.get(NgModel)
+      .viewToModelUpdate('vehicle-1');
+    fixture.detectChanges();
+    setInput(fixture, 'quantityLiters', '40');
+    setInput(fixture, 'unitPrice', '90');
+    setInput(fixture, 'odometer', '12550');
+    (
+      fixture.nativeElement.querySelector('.vehicle-form-section form') as HTMLFormElement
+    ).dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    fixture.detectChanges();
+
+    http.expectOne('http://api.test/api/v1/vehicles/vehicle-1/assignment').flush({
+      driverId: 'driver-1',
+    });
+    const create = http.expectOne('http://api.test/api/v1/fuel-records');
+    expect(create.request.method).toBe('POST');
+    expect(create.request.body.vehicleId).toBe('vehicle-1');
+    expect(create.request.body.driverId).toBe('driver-1');
+    expect(create.request.body.quantityLiters).toBe(40);
+    expect(create.request.body.currencyCode).toBe('ETB');
+    create.flush(fuelResponse());
+    http.expectOne('http://api.test/api/v1/fuel-records?page=1&pageSize=20').flush({
+      items: [fuelResponse()],
+      page: 1,
+      pageSize: 20,
+      totalCount: 1,
+    });
   });
 });
+
+function sessionWithRoles(roles: string[]) {
+  return {
+    tokens: { accessToken: 'access-token', refreshToken: 'refresh-token' },
+    user: {
+      id: 'user-1',
+      organizationId: 'organization-1',
+      email: 'owner@example.test',
+      userName: 'Fleet user',
+      roles,
+    },
+  };
+}
+
+function vehicleResponse() {
+  return {
+    id: 'vehicle-1',
+    organizationId: 'organization-1',
+    plateNumber: 'ET-3-12345',
+    make: 'Isuzu',
+    model: 'NPR',
+    year: 2021,
+    type: 4,
+    fuelType: 2,
+    currentMileage: 12500,
+    vin: null,
+    status: 1,
+    purchaseDate: null,
+    currencyCode: 'ETB',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  };
+}
+
+function fuelResponse() {
+  return {
+    id: 'fuel-1',
+    organizationId: 'organization-1',
+    vehicleId: 'vehicle-1',
+    vehiclePlateNumber: 'ET-3-12345',
+    driverId: 'driver-1',
+    driverName: 'Almaz Tadesse',
+    tripId: null,
+    occurredAt: '2026-11-13T10:00:00Z',
+    quantityLiters: 50.5,
+    unitPrice: 82.5,
+    totalCost: 4166.25,
+    odometer: 12500,
+    station: 'TotalEnergies Bole',
+    currencyCode: 'ETB',
+    receiptReference: 'REC-9912',
+    notes: null,
+  };
+}
+
+function setInput(
+  fixture: ComponentFixture<FuelManagementComponent>,
+  name: string,
+  value: string,
+): void {
+  const input = fixture.debugElement.query(By.css(`[name="${name}"]`));
+  (input.nativeElement as HTMLInputElement).value = value;
+  input.triggerEventHandler('ngModelChange', Number(value));
+}

@@ -94,22 +94,22 @@ builder.Services.AddAuthorization(options =>
         .RequireClaim("organization_id"));
     options.AddPolicy("CompanyOwner", policy => policy.RequireAuthenticatedUser()
         .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner"));
+        .RequireRole("CompanyOwner", "CompanyAdministrator"));
     options.AddPolicy("FleetManager", policy => policy.RequireAuthenticatedUser()
         .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "FleetManager"));
+        .RequireRole("CompanyOwner", "CompanyAdministrator", "FleetManager"));
     options.AddPolicy("MaintenanceManager", policy => policy.RequireAuthenticatedUser()
         .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "MaintenanceManager"));
+        .RequireRole("CompanyOwner", "CompanyAdministrator", "MaintenanceManager"));
     options.AddPolicy("InspectionViewer", policy => policy.RequireAuthenticatedUser()
         .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "FleetManager", "MaintenanceManager"));
+        .RequireRole("CompanyOwner", "CompanyAdministrator", "FleetManager", "MaintenanceManager"));
     options.AddPolicy("InspectionSubmitter", policy => policy.RequireAuthenticatedUser()
         .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "FleetManager", "MaintenanceManager", "Driver"));
+        .RequireRole("CompanyOwner", "CompanyAdministrator", "FleetManager", "MaintenanceManager", "Driver"));
     options.AddPolicy("FinanceManager", policy => policy.RequireAuthenticatedUser()
         .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "FinanceManager"));
+        .RequireRole("CompanyOwner", "CompanyAdministrator", "FinanceManager", "Accountant"));
 });
 
 builder.Services.AddCors(options =>
