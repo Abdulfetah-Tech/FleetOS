@@ -1,6 +1,10 @@
 app-vehicle-management.vehicle-management,
 app-driver-management.driver-management,
-app-trip-management.trip-management {
+app-trip-management.trip-management,
+app-fuel-management.fuel-management,
+app-maintenance-management.maintenance-management,
+app-notifications.notifications-page,
+app-fleet-reports.fleet-reports {
   .vehicle-main {
   min-width: 0;
   padding: 27px clamp(20px, 3vw, 44px) 42px;

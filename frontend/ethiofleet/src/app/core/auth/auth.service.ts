@@ -24,11 +24,19 @@ export class AuthService {
   readonly session = this.sessionState.asReadonly();
 
   isCompanyOwner(): boolean {
-    return this.hasRole('CompanyOwner');
+    return this.hasRole('CompanyOwner') || this.hasRole('CompanyAdministrator');
   }
 
   isFleetManager(): boolean {
-    return this.hasRole('CompanyOwner') || this.hasRole('FleetManager');
+    return this.isCompanyOwner() || this.hasRole('FleetManager');
+  }
+
+  isMaintenanceManager(): boolean {
+    return this.isCompanyOwner() || this.hasRole('MaintenanceManager');
+  }
+
+  isFinanceManager(): boolean {
+    return this.isCompanyOwner() || this.hasRole('FinanceManager') || this.hasRole('Accountant');
   }
 
   private hasRole(role: string): boolean {
@@ -41,18 +49,24 @@ export class AuthService {
   }
 
   login(request: LoginRequest): Observable<AuthSession> {
-    return this.http.post<AuthenticationResult>(`${this.apiBaseUrl}/auth/login`, request, {
-      context: anonymousRequestContext(),
-    }).pipe(
-      map((result) => createSession(result)),
-      tap((session) => this.storeSession(session)),
-    );
+    return this.http
+      .post<AuthenticationResult>(`${this.apiBaseUrl}/auth/login`, request, {
+        context: anonymousRequestContext(),
+      })
+      .pipe(
+        map((result) => createSession(result)),
+        tap((session) => this.storeSession(session)),
+      );
   }
 
   register(request: RegisterRequest): Observable<RegistrationAcceptedResponse> {
-    return this.http.post<RegistrationAcceptedResponse>(`${this.apiBaseUrl}/auth/register`, request, {
-      context: anonymousRequestContext(),
-    });
+    return this.http.post<RegistrationAcceptedResponse>(
+      `${this.apiBaseUrl}/auth/register`,
+      request,
+      {
+        context: anonymousRequestContext(),
+      },
+    );
   }
 
   refresh(): Observable<AuthSession> {
@@ -62,18 +76,20 @@ export class AuthService {
     }
 
     if (!this.refreshInFlight) {
-      this.refreshInFlight = this.http.post<AuthenticationResult>(
-        `${this.apiBaseUrl}/auth/refresh`,
-        { refreshToken: session.tokens.refreshToken },
-        { context: anonymousRequestContext() },
-      ).pipe(
-        map((result) => createSession(result)),
-        tap((updatedSession) => this.storeSession(updatedSession)),
-        finalize(() => {
-          this.refreshInFlight = undefined;
-        }),
-        shareReplay({ bufferSize: 1, refCount: false }),
-      );
+      this.refreshInFlight = this.http
+        .post<AuthenticationResult>(
+          `${this.apiBaseUrl}/auth/refresh`,
+          { refreshToken: session.tokens.refreshToken },
+          { context: anonymousRequestContext() },
+        )
+        .pipe(
+          map((result) => createSession(result)),
+          tap((updatedSession) => this.storeSession(updatedSession)),
+          finalize(() => {
+            this.refreshInFlight = undefined;
+          }),
+          shareReplay({ bufferSize: 1, refCount: false }),
+        );
     }
 
     return this.refreshInFlight;
@@ -85,14 +101,16 @@ export class AuthService {
       return of(void 0);
     }
 
-    return this.http.post<void>(
-      `${this.apiBaseUrl}/auth/logout`,
-      { refreshToken: session.tokens.refreshToken },
-      {
-        context: anonymousRequestContext(),
-        headers: new HttpHeaders({ Authorization: `Bearer ${session.tokens.accessToken}` }),
-      },
-    ).pipe(finalize(() => this.clearSession()));
+    return this.http
+      .post<void>(
+        `${this.apiBaseUrl}/auth/logout`,
+        { refreshToken: session.tokens.refreshToken },
+        {
+          context: anonymousRequestContext(),
+          headers: new HttpHeaders({ Authorization: `Bearer ${session.tokens.accessToken}` }),
+        },
+      )
+      .pipe(finalize(() => this.clearSession()));
   }
 
   clearSession(): void {
