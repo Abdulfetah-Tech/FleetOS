@@ -1,6 +1,13 @@
+﻿using System.Threading.Tasks;
 namespace EthioFleet.Infrastructure.Services;
-
+/// <summary>
+/// Abstract contract for sending e‑mail.
+/// </summary>
 public interface IEmailSender
 {
-    Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default);
+    Task SendAsync(string toEmail,
+                   string toName,
+                   string subject,
+                   string htmlBody,
+                   string? plainTextBody = null);
 }

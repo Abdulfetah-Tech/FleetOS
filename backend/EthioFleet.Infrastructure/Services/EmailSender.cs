@@ -1,68 +1,64 @@
-using EthioFleet.Application.Authentication;
-using EthioFleet.Infrastructure.Configuration;
-using MailKit;
-using MailKit.Net.Smtp;
+﻿using MailKit.Net.Smtp;
 using MailKit.Security;
+using MimeKit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MimeKit;
-
+using EthioFleet.Infrastructure.Configuration;
 namespace EthioFleet.Infrastructure.Services;
-
-public sealed class EmailSender : IEmailSender, EthioFleet.Application.Authentication.IEmailSender
+/// <summary>
+/// Sends e‑mail via SMTP using MailKit (async, has proper logging).
+/// </summary>
+public sealed class EmailSender : IEmailSender
 {
     private readonly SmtpSettings _settings;
     private readonly ILogger<EmailSender> _logger;
-
-    public EmailSender(IOptions<SmtpSettings> settings, ILogger<EmailSender> logger)
+    public EmailSender(IOptions<SmtpSettings> settings,
+                       ILogger<EmailSender> logger)
     {
         _settings = settings.Value;
-        _logger = logger;
+        _logger   = logger;
     }
-
-    public bool IsConfigured =>
-        !string.IsNullOrWhiteSpace(_settings.Server)
-        && !string.IsNullOrWhiteSpace(_settings.Username)
-        && !string.IsNullOrWhiteSpace(_settings.Password)
-        && !string.IsNullOrWhiteSpace(_settings.SenderEmail);
-
-    public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken)
+    public async Task SendAsync(string toEmail,
+                                string toName,
+                                string subject,
+                                string htmlBody,
+                                string? plainTextBody = null)
     {
-        if (!IsConfigured)
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(_settings.SenderName, _settings.SenderEmail));
+        message.To.Add(new MailboxAddress(toName, toEmail));
+        message.Subject = subject;
+        var body = new BodyBuilder
         {
-            _logger.LogWarning("Email delivery attempted but SMTP is not configured");
-            throw new EmailDeliveryNotConfiguredException();
-        }
-
-        var email = new MimeMessage();
-        email.From.Add(new MailboxAddress(_settings.SenderName, _settings.SenderEmail));
-        email.To.Add(MailboxAddress.Parse(message.Recipient));
-        email.Subject = message.Subject;
-        email.Body = new TextPart("plain") { Text = message.TextBody };
-
+            HtmlBody = htmlBody,
+            TextBody = plainTextBody ?? "Please view this e‑mail in an HTML‑compatible client."
+        };
+        message.Body = body.ToMessageBody();
         using var client = new SmtpClient();
-
         try
         {
-            var secureSocketOptions = _settings.Port == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
-            await client.ConnectAsync(_settings.Server, _settings.Port, secureSocketOptions, cancellationToken);
-
-            await client.AuthenticateAsync(_settings.Username, _settings.Password, cancellationToken);
-
-            await client.SendAsync(email, cancellationToken);
-            await client.DisconnectAsync(true, cancellationToken);
-
-            _logger.LogInformation("Email sent to {Recipient} with subject {Subject}", message.Recipient, message.Subject);
+            var socketOptions = _settings.Port == 465
+                ? SecureSocketOptions.SslOnConnect
+                : SecureSocketOptions.StartTls;
+            await client.ConnectAsync(_settings.Server,
+                                      _settings.Port,
+                                      socketOptions);
+            if (!string.IsNullOrWhiteSpace(_settings.Username))
+            {
+                await client.AuthenticateAsync(_settings.Username,
+                                              _settings.Password);
+            }
+            await client.SendAsync(message);
+            _logger.LogInformation("Email sent to {Recipient}", toEmail);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send email to {Recipient}", message.Recipient);
-            throw;
+            _logger.LogError(ex, "Failed to send email to {Recipient}", toEmail);
+            throw; // let the caller decide whether to fail the whole request
         }
-    }
-
-    public async Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
-    {
-        await SendAsync(new EmailMessage(to, subject, body), cancellationToken);
+        finally
+        {
+            await client.DisconnectAsync(true);
+        }
     }
 }
