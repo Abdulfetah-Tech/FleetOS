@@ -4,18 +4,68 @@ on:
   push:
   pull_request:
 
+env:
+  DOTNET_VERSION: 11.0.x
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ethiofleet-api
+
 jobs:
   backend:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: ${{ env.DOTNET_VERSION }}
       - run: dotnet tool restore
       - run: dotnet restore EthioFleet.slnx
       - run: dotnet build EthioFleet.slnx --no-restore --configuration Release
       - run: dotnet test backend/EthioFleet.Tests/EthioFleet.Tests.csproj --no-restore --configuration Release
+
+      # Generate OpenAPI spec
+      - name: Generate OpenAPI spec
+        run: |
+          dotnet build backend/EthioFleet.Api/EthioFleet.Api.csproj --configuration Release --no-restore
+          dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 8.1.0
+          export PATH="$PATH:/home/runner/.dotnet/tools"
+          dotnet swagger tofile --output ./api-spec.json ./backend/EthioFleet.Api/bin/Release/net11.0/EthioFleet.Api.dll v1
+      - name: Upload OpenAPI spec artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-spec
+          path: api-spec.json
+
+      # Build and push Docker image
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: backend/EthioFleet.Api/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   frontend:
     runs-on: ubuntu-latest

@@ -3,6 +3,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Asp.Versioning;
 using EthioFleet.Api.Health;
+using EthioFleet.Api.Hubs;
 using EthioFleet.Api.Middleware;
 using EthioFleet.Application;
 using EthioFleet.Application.Authentication;
@@ -11,10 +12,10 @@ using EthioFleet.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Serilog;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,8 +43,17 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+builder.Services.AddStackExchangeRedisCache(o =>
+    o.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379");
+
+builder.Services.AddSignalR()
+    .AddStackExchangeRedis(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379");
+
 builder.Services.AddHealthChecks()
     .AddCheck<PostgresHealthCheck>("postgresql", tags: ["ready"])
+    .AddRedis(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379",
+             name: "redis", tags: new[] { "ready" })
     .AddCheck("live", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(), tags: ["live"]);
 builder.Services.AddApiVersioning(options =>
 {
@@ -197,6 +207,7 @@ app.MapGet("/api/v{version:apiVersion}", () =>
     .WithName("GetApiVersion");
 
 app.MapControllers();
+app.MapHub<TripHub>("/hub/trip");
 
 if (app.Environment.IsDevelopment())
 {
