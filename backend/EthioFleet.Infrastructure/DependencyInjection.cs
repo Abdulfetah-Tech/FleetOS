@@ -61,7 +61,7 @@ public static class DependencyInjection
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<SmtpSettings>(configuration.GetSection(SmtpSettings.SectionName));
-        services.AddTransient<EthioFleet.Infrastructure.Services.IEmailSender, EmailSender>();
+        services.AddTransient<EthioFleet.Application.Authentication.IEmailSender, EmailSender>();
 
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IDriverService, DriverService>();

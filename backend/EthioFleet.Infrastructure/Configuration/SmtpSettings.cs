@@ -4,6 +4,7 @@
 /// </summary>
 public sealed class SmtpSettings
 {
+    public const string SectionName = "Smtp";
     public string Server   { get; set; } = "";
     public int    Port     { get; set; } = 587;   // 587 = STARTTLS, 465 = SSL
     public string SenderName  { get; set; } = "";

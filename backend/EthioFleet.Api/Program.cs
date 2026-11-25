@@ -55,6 +55,7 @@ builder.Services.AddHealthChecks()
     .AddRedis(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379",
              name: "redis", tags: new[] { "ready" })
     .AddCheck("live", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(), tags: ["live"]);
+
 builder.Services.AddApiVersioning(options =>
 {
     options.DefaultApiVersion = new ApiVersion(1, 0);
@@ -98,6 +99,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             RoleClaimType = System.Security.Claims.ClaimTypes.Role
         };
     });
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("TenantMember", policy => policy.RequireAuthenticatedUser()
@@ -224,75 +226,3 @@ if (app.Environment.IsEnvironment("Testing"))
 app.Run();
 
 public partial class Program;
- // ---------------------------------------------------------
- // Redis distributed cache
- // ---------------------------------------------------------
- builder.Services.AddStackExchangeRedisCache(o =>
- {
-     o.Configuration = builder.Configuration.GetConnectionString("Redis")
-         ?? "localhost:6379";
-     o.InstanceName = "EthioFleet-";
- });
-
- // ---------------------------------------------------------
- // SignalR with Redis back-plane
- // ---------------------------------------------------------
- builder.Services.AddSignalR()
-     .AddStackExchangeRedis(builder.Configuration.GetConnectionString("Redis")
-         ?? "localhost:6379", options => { });
-
- // ---------------------------------------------------------
- // Health checks – include Redis
- // ---------------------------------------------------------
- builder.Services.AddHealthChecks()
-     .AddCheck<PostgresHealthCheck>("postgresql", tags: new[] { "ready" })
-     .AddRedis(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379",
-               name: "redis", tags: new[] { "ready" })
-     .AddCheck("live", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(),
-               tags: new[] { "live" });
-
- // ---------------------------------------------------------
- // Email sender registration
- // ---------------------------------------------------------
- builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
- builder.Services.AddTransient<IEmailSender, EmailSender>();
- // ---------------------------------------------------------
- // Redis distributed cache
- // ---------------------------------------------------------
- builder.Services.AddStackExchangeRedisCache(o =>
- {
-     o.Configuration = builder.Configuration.GetConnectionString("Redis")
-         ?? "localhost:6379";
-     o.InstanceName = "EthioFleet-";
- });
-
- // ---------------------------------------------------------
- // SignalR with Redis back-plane
- // ---------------------------------------------------------
- builder.Services.AddSignalR()
-     .AddStackExchangeRedis(builder.Configuration.GetConnectionString("Redis")
-         ?? "localhost:6379", options => { });
-
- // ---------------------------------------------------------
- // Health checks – include Redis
- // ---------------------------------------------------------
- builder.Services.AddHealthChecks()
-     .AddCheck<PostgresHealthCheck>("postgresql", tags: new[] { "ready" })
-     .AddRedis(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379",
-               name: "redis", tags: new[] { "ready" })
-     .AddCheck("live", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(),
-               tags: new[] { "live" });
-
- // ---------------------------------------------------------
- // Email sender registration
- // ---------------------------------------------------------
- builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
- builder.Services.AddTransient<IEmailSender, EmailSender>();
- // ---------------------------------------------------------
- // Map SignalR hubs
- // ---------------------------------------------------------
- app.MapHub<TripHub>("/hub/trip");
- // ---------------------------------------------------------
- // Map SignalR hubs
- // ---------------------------------------------------------
- app.MapHub<TripHub>("/hub/trip");
