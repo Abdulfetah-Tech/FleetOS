@@ -3,6 +3,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Asp.Versioning;
 using EthioFleet.Api.Health;
+using EthioFleet.Api.Hubs;
 using EthioFleet.Api.Middleware;
 using EthioFleet.Application;
 using EthioFleet.Application.Authentication;
@@ -11,10 +12,10 @@ using EthioFleet.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Serilog;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,9 +43,19 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+builder.Services.AddStackExchangeRedisCache(o =>
+    o.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379");
+
+builder.Services.AddSignalR()
+    .AddStackExchangeRedis(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379");
+
 builder.Services.AddHealthChecks()
     .AddCheck<PostgresHealthCheck>("postgresql", tags: ["ready"])
+    .AddRedis(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379",
+             name: "redis", tags: new[] { "ready" })
     .AddCheck("live", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(), tags: ["live"]);
+
 builder.Services.AddApiVersioning(options =>
 {
     options.DefaultApiVersion = new ApiVersion(1, 0);
@@ -88,28 +99,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             RoleClaimType = System.Security.Claims.ClaimTypes.Role
         };
     });
+
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("TenantMember", policy => policy.RequireAuthenticatedUser()
+    options.AddPolicy(AuthorizationPolicies.TenantMember, policy => policy.RequireAuthenticatedUser()
         .RequireClaim("organization_id"));
-    options.AddPolicy("CompanyOwner", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner"));
-    options.AddPolicy("FleetManager", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "FleetManager"));
-    options.AddPolicy("MaintenanceManager", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "MaintenanceManager"));
-    options.AddPolicy("InspectionViewer", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "FleetManager", "MaintenanceManager"));
-    options.AddPolicy("InspectionSubmitter", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "FleetManager", "MaintenanceManager", "Driver"));
-    options.AddPolicy("FinanceManager", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "FinanceManager"));
+
+    foreach (var (policyName, roles) in AuthorizationPolicies.TenantRoleMatrix)
+    {
+        options.AddPolicy(policyName, policy => policy.RequireAuthenticatedUser()
+            .RequireClaim("organization_id")
+            .RequireRole(roles));
+    }
+
+    options.AddPolicy(AuthorizationPolicies.PlatformAdmin, policy => policy.RequireAuthenticatedUser()
+        .RequireRole(AuthorizationPolicies.PlatformAdminRoles));
 });
 
 builder.Services.AddCors(options =>
@@ -197,6 +201,7 @@ app.MapGet("/api/v{version:apiVersion}", () =>
     .WithName("GetApiVersion");
 
 app.MapControllers();
+app.MapHub<TripHub>("/hub/trip");
 
 if (app.Environment.IsDevelopment())
 {

@@ -1,5 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup />
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>NU1902;NU1903</NoWarn>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\EthioFleet.Domain\EthioFleet.Domain.csproj" />
   </ItemGroup>

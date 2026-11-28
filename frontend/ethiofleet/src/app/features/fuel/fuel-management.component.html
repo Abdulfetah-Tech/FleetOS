@@ -1,123 +1,191 @@
-<div class="fuel-management">
-  <h2>Fuel Management</h2>
-
-  @if (errorMessage()) {
-    <div class="alert alert-error">{{ errorMessage() }}</div>
-  }
+<main class="vehicle-main" [attr.aria-busy]="loading()">
+  <header class="page-header">
+    <div>
+      <h1>Fuel</h1>
+      <p>Purchase records in ETB for the current organization</p>
+    </div>
+    @if (isCompanyOwner()) {
+      <button class="primary-button" type="button" [disabled]="loading()" (click)="beginCreate()">
+        Log fuel
+      </button>
+    }
+  </header>
 
   @if (noticeMessage()) {
-    <div class="alert alert-success">{{ noticeMessage() }}</div>
+    <p class="success-message" role="status">{{ noticeMessage() }}</p>
+  }
+  @if (errorMessage()) {
+    <section class="load-error" role="alert">
+      <p>{{ errorMessage() }}</p>
+      <button type="button" (click)="loadFuelRecords()" [disabled]="loading()">Try again</button>
+    </section>
   }
 
-  <div class="fuel-card">
-    <h3>{{ formOpen() ? 'Log Fuel Record' : 'Fuel Records' }}</h3>
-
-    @if (formOpen()) {
-      <form (ngSubmit)="submitFuelRecord()" class="fuel-form" #fuelForm="ngForm">
-        <div class="form-row">
-          <label for="occurredAt">Date</label>
-          <input id="occurredAt" type="datetime-local" [(ngModel)]="form.occurredAt" name="occurredAt" required />
+  @if (formOpen()) {
+    <section class="vehicle-form-section" aria-labelledby="fuel-form-heading">
+      <div class="form-heading">
+        <h2 id="fuel-form-heading">Log a fuel purchase</h2>
+        <button class="text-button" type="button" [disabled]="saving()" (click)="closeForm()">Cancel</button>
+      </div>
+      @if (formError()) {
+        <p class="form-error" role="alert">{{ formError() }}</p>
+      }
+      <form #fuelForm="ngForm" (ngSubmit)="submitFuelRecord()">
+        <div class="form-grid">
+          <label>
+            <span>Occurred at</span>
+            <input name="occurredAt" type="datetime-local" [(ngModel)]="form.occurredAt" required>
+          </label>
+          <label>
+            <span>Vehicle</span>
+            <select
+              name="vehicleId"
+              [(ngModel)]="chosenVehicleId"
+              (ngModelChange)="onVehicleSelected($event)"
+              required
+            >
+              <option value="">Select a vehicle</option>
+              @for (vehicle of vehiclePage()?.items; track vehicle.id) {
+                <option [value]="vehicle.id">{{ vehicle.plateNumber }} — {{ vehicle.make }} {{ vehicle.model }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Quantity (L)</span>
+            <input name="quantityLiters" type="number" min="0.01" step="0.01" [(ngModel)]="form.quantityLiters" required>
+          </label>
+          <label>
+            <span>Unit price (ETB)</span>
+            <input name="unitPrice" type="number" min="0" step="0.01" [(ngModel)]="form.unitPrice" required>
+          </label>
+          <label>
+            <span>Odometer (km)</span>
+            <input
+              name="odometer"
+              type="number"
+              [min]="selectedVehicle()?.currentMileage ?? 0"
+              step="0.1"
+              [(ngModel)]="form.odometer"
+              required
+            >
+          </label>
+          <label>
+            <span>Station <span class="optional">(optional)</span></span>
+            <input name="station" [(ngModel)]="form.station" maxlength="160">
+          </label>
+          <label>
+            <span>Receipt reference <span class="optional">(optional)</span></span>
+            <input name="receiptReference" [(ngModel)]="form.receiptReference" maxlength="100">
+          </label>
+          <label class="trip-notes-field">
+            <span>Notes <span class="optional">(optional)</span></span>
+            <textarea name="notes" [(ngModel)]="form.notes" maxlength="2000" rows="2"></textarea>
+          </label>
         </div>
-        <div class="form-row">
-          <label for="vehicleId">Vehicle</label>
-          <select id="vehicleId" [(ngModel)]="selectedVehicleId" name="vehicleId"           (change)="onVehicleSelected(selectedVehicleId())" required>
-            <option value="">Select a vehicle</option>
-            @for (v of vehiclePage()?.items; track v.id) {
-              <option [value]="v.id">{{ v.plateNumber }}</option>
-            }
-          </select>
-        </div>
-        <div class="form-row">
-          <label for="quantityLiters">Quantity (L)</label>
-          <input id="quantityLiters" type="number" step="0.01" [(ngModel)]="form.quantityLiters" name="quantityLiters" required min="0" />
-        </div>
-        <div class="form-row">
-          <label for="unitPrice">Unit Price (ETB)</label>
-          <input id="unitPrice" type="number" step="0.01" [(ngModel)]="form.unitPrice" name="unitPrice" required min="0" />
-        </div>
-        <div class="form-row">
-          <label for="odometer">Odometer (km)</label>
-          <input id="odometer" type="number" [(ngModel)]="form.odometer" name="odometer" required min="0" />
-        </div>
-        <div class="form-row">
-          <label for="station">Station</label>
-          <input id="station" type="text" [(ngModel)]="form.station" name="station" />
-        </div>
-        <div class="form-row">
-          <label for="receiptReference">Receipt Reference</label>
-          <input id="receiptReference" type="text" [(ngModel)]="form.receiptReference" name="receiptReference" />
-        </div>
-        <div class="form-row">
-          <label for="notes">Notes</label>
-          <textarea id="notes" [(ngModel)]="form.notes" name="notes"></textarea>
-        </div>
+        <p class="form-note">
+          Estimated total {{ formatMoney(computedTotalCost()) }}. The API links the active driver assignment when one exists.
+        </p>
         <div class="form-actions">
-          <button type="submit" [disabled]="saving() || fuelForm.invalid">{{ saving() ? 'Saving...' : 'Log Fuel Record' }}</button>
-          <button type="button" (click)="closeForm()" class="secondary">Cancel</button>
-        </div>
-        @if (formError()) {
-          <div class="form-error">{{ formError() }}</div>
-        }
-        <div class="form-hint">
-          Estimated total: {{ computedTotalCost() | currency:'ETB':'symbol-narrow':'1.2-2' }}
+          <button
+            class="primary-button"
+            type="submit"
+            [disabled]="fuelForm.invalid || saving() || !selectedVehicle()"
+          >
+            {{ saving() ? 'Saving…' : 'Log fuel record' }}
+          </button>
         </div>
       </form>
+    </section>
+  }
+
+  <section class="vehicle-list-section" aria-labelledby="fuel-list-heading">
+    <div class="list-heading">
+      <h2 id="fuel-list-heading">Fuel records</h2>
+      <form class="search-form" role="search" (ngSubmit)="searchVehicles(); setVehicleFilter(chosenVehicleId)">
+        <label class="visually-hidden" for="fuel-vehicle-filter">Filter by vehicle</label>
+        <input
+          id="fuel-vehicle-filter"
+          name="vehicleSearch"
+          type="search"
+          maxlength="100"
+          placeholder="Search vehicles"
+          [ngModel]="vehicleSearchText()"
+          (ngModelChange)="vehicleSearchText.set($event)"
+        >
+        <button class="secondary-button" type="button" [disabled]="loading()" (click)="searchVehicles()">Find vehicles</button>
+      </form>
+    </div>
+
+    @if (vehiclePage()?.items.length) {
+      <label class="trip-status-filter">
+        <span>Show records for</span>
+        <select
+          #filterSelect
+          [value]="filterVehicleId()"
+          (change)="setVehicleFilter(filterSelect.value)"
+          [disabled]="loading()"
+        >
+          <option value="">All vehicles</option>
+          @for (vehicle of vehiclePage()?.items; track vehicle.id) {
+            <option [value]="vehicle.id">{{ vehicle.plateNumber }}</option>
+          }
+        </select>
+      </label>
     }
 
-    <hr />
-
-    <h3>Fuel Records</h3>
-
-    <div class="table-controls">
-      <div>
-        Page {{ page() }} of {{ totalPages() }}
-      </div>
+    @if (loading() && !fuelPage()) {
+      <p class="loading-state" role="status">Loading fuel records…</p>
+    } @else if (records().length > 0) {
+      <ul class="vehicle-list" aria-label="Fuel records">
+        @for (record of records(); track record.id) {
+          <li class="vehicle-row">
+            <div class="vehicle-identity">
+              <strong>{{ record.vehiclePlateNumber }}</strong>
+              <span>{{ formatDate(record.occurredAt) }}</span>
+            </div>
+            <dl class="vehicle-details">
+              <div><dt>Quantity</dt><dd>{{ record.quantityLiters }} L</dd></div>
+              <div><dt>Unit price</dt><dd>{{ formatMoney(record.unitPrice, record.currencyCode) }}</dd></div>
+              <div><dt>Driver</dt><dd>{{ record.driverName ?? 'Unassigned' }}</dd></div>
+            </dl>
+            <div class="vehicle-mileage">
+              <span>Odometer</span>
+              <strong>{{ record.odometer }} km</strong>
+            </div>
+            <div class="vehicle-status">
+              <span>Total</span>
+              <strong>{{ formatMoney(record.totalCost, record.currencyCode) }}</strong>
+            </div>
+            <div class="vehicle-actions">
+              @if (isCompanyOwner()) {
+                <button
+                  class="text-button destructive-button"
+                  type="button"
+                  [disabled]="loading() || deletingId() === record.id"
+                  (click)="deleteRecord(record)"
+                >
+                  {{ deletingId() === record.id ? 'Removing…' : 'Remove' }}
+                </button>
+              }
+            </div>
+          </li>
+        }
+      </ul>
       <div class="pagination">
-        <button (click)="prevPage()" [disabled]="page() <= 1 || loading()">Previous</button>
-        <button (click)="nextPage()" [disabled]="page() >= totalPages() || loading()">Next</button>
+        <div>
+          Page {{ page() }} of {{ totalPages() }} · {{ formatMoney(totalCostCurrentPage()) }} /
+          {{ totalLitersCurrentPage() }} L on this page
+        </div>
+        <div>
+          <button class="secondary-button" type="button" (click)="prevPage()" [disabled]="page() <= 1 || loading()">Previous</button>
+          <button class="secondary-button" type="button" (click)="nextPage()" [disabled]="page() >= totalPages() || loading()">Next</button>
+        </div>
       </div>
-    </div>
-
-    <table class="fuel-table">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Vehicle</th>
-          <th>Driver</th>
-          <th>Quantity</th>
-          <th>Unit Price</th>
-          <th>Total</th>
-          <th>Odometer</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (f of fuelPage()?.items; track f.id) {
-          <tr>
-            <td>{{ f.occurredAt | date }}</td>
-            <td>{{ f.vehiclePlateNumber }}</td>
-            <td>{{ f.driverName ?? '—' }}</td>
-            <td>{{ f.quantityLiters }} L</td>
-            <td>{{ f.unitPrice | currency:'ETB':'symbol-narrow':'1.2-2' }}</td>
-            <td>{{ f.totalCost | currency:'ETB':'symbol-narrow':'1.2-2' }}</td>
-            <td>{{ f.odometer }} km</td>
-            <td>
-              <button (click)="deleteRecord(f)" class="danger" [disabled]="deletingId() === f.id">
-                {{ deletingId() === f.id ? 'Deleting...' : 'Delete' }}
-              </button>
-            </td>
-          </tr>
-        }
-        @empty {
-          <tr><td colspan="8">No fuel records found.</td></tr>
-        }
-      </tbody>
-    </table>
-
-    <div class="totals">
-      <span><strong>Total Cost:</strong> {{ totalCostCurrentPage() | currency:'ETB':'symbol-narrow':'1.2-2' }}</span>
-      <span><strong>Total Liters:</strong> {{ totalLitersCurrentPage() }} L</span>
-      <span><strong>Avg Price/L:</strong> {{ averagePricePerLiter() | currency:'ETB':'symbol-narrow':'1.2-2' }}</span>
-    </div>
-  </div>
-</div>
+    } @else if (!loading()) {
+      <div class="empty-state">
+        <h2>No fuel records</h2>
+        <p>Log a purchase after selecting a vehicle. Totals on this page stay in the recorded currency.</p>
+      </div>
+    }
+  </section>
+</main>

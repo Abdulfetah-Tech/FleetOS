@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using EthioFleet.Application.Authentication;
 using EthioFleet.Application.Dashboard;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ namespace EthioFleet.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/dashboard/fleet")]
-[Authorize(Policy = "FleetManager")]
+[Authorize(Policy = AuthorizationPolicies.FleetReadOnly)]
 public sealed class FleetDashboardController(IFleetDashboardService dashboardService) : ControllerBase
 {
     [HttpGet]

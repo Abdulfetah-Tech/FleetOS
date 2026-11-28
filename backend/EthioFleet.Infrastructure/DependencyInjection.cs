@@ -1,3 +1,4 @@
+using EthioFleet.Application.Audit;
 using EthioFleet.Application.Incidents;
 using EthioFleet.Application.Dashboard;
 using EthioFleet.Application.Assignments;
@@ -13,6 +14,7 @@ using EthioFleet.Application.Notifications;
 using EthioFleet.Application.Trips;
 using EthioFleet.Application.Vehicles;
 using EthioFleet.Infrastructure.Authentication;
+using EthioFleet.Infrastructure.Configuration;
 using EthioFleet.Infrastructure.Persistence;
 using EthioFleet.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
@@ -59,7 +61,9 @@ public static class DependencyInjection
             options.TokenLifespan = TimeSpan.FromHours(2));
 
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
-        services.AddSingleton<IEmailSender, UnconfiguredEmailSender>();
+        services.Configure<SmtpSettings>(configuration.GetSection(SmtpSettings.SectionName));
+        services.AddTransient<EthioFleet.Application.Authentication.IEmailSender, EmailSender>();
+
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IDriverService, DriverService>();
         services.AddScoped<IVehicleAssignmentService, VehicleAssignmentService>();
@@ -74,8 +78,10 @@ public static class DependencyInjection
         services.AddScoped<IFleetReminderProcessor, FleetReminderProcessor>();
         services.AddScoped<IFleetDashboardService, FleetDashboardService>();
         services.AddScoped<IIncidentService, IncidentService>();
+        services.AddScoped<IAuditLogService, AuditLogService>();
         services.AddScoped<IFleetReportService, FleetReportService>();
         services.AddHostedService<FleetReminderBackgroundService>();
+
         return services;
     }
 }
