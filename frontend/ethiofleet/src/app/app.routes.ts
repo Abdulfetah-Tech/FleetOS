@@ -8,6 +8,7 @@ import { DriverManagementComponent } from './features/drivers/driver-management.
 import { TripManagementComponent } from './features/trips/trip-management.component';
 import { VehicleManagementComponent } from './features/vehicles/vehicle-management.component';
 import { FuelManagementComponent } from './features/fuel/fuel-management.component';
+import { MaintenanceManagementComponent } from './features/maintenance/maintenance-management.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent, canActivate: [guestGuard] },
@@ -21,7 +22,8 @@ export const routes: Routes = [
       { path: 'vehicles', component: VehicleManagementComponent },
       { path: 'drivers', component: DriverManagementComponent },
       { path: 'trips', component: TripManagementComponent },
-        { path: 'fuel', component: FuelManagementComponent },
+      { path: 'fuel', component: FuelManagementComponent },
+      { path: 'maintenance', component: MaintenanceManagementComponent },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
     ],
   },

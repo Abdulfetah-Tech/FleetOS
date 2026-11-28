@@ -1,3 +1,4 @@
+using EthioFleet.Application.Audit;
 using EthioFleet.Application.Incidents;
 using EthioFleet.Application.Dashboard;
 using EthioFleet.Application.Assignments;
@@ -77,6 +78,7 @@ public static class DependencyInjection
         services.AddScoped<IFleetReminderProcessor, FleetReminderProcessor>();
         services.AddScoped<IFleetDashboardService, FleetDashboardService>();
         services.AddScoped<IIncidentService, IncidentService>();
+        services.AddScoped<IAuditLogService, AuditLogService>();
         services.AddScoped<IFleetReportService, FleetReportService>();
         services.AddHostedService<FleetReminderBackgroundService>();
 

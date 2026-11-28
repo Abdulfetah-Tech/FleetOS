@@ -102,26 +102,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("TenantMember", policy => policy.RequireAuthenticatedUser()
+    options.AddPolicy(AuthorizationPolicies.TenantMember, policy => policy.RequireAuthenticatedUser()
         .RequireClaim("organization_id"));
-    options.AddPolicy("CompanyOwner", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "CompanyAdministrator"));
-    options.AddPolicy("FleetManager", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "CompanyAdministrator", "FleetManager"));
-    options.AddPolicy("MaintenanceManager", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "CompanyAdministrator", "MaintenanceManager"));
-    options.AddPolicy("InspectionViewer", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "CompanyAdministrator", "FleetManager", "MaintenanceManager"));
-    options.AddPolicy("InspectionSubmitter", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "CompanyAdministrator", "FleetManager", "MaintenanceManager", "Driver"));
-    options.AddPolicy("FinanceManager", policy => policy.RequireAuthenticatedUser()
-        .RequireClaim("organization_id")
-        .RequireRole("CompanyOwner", "CompanyAdministrator", "FinanceManager", "Accountant"));
+
+    foreach (var (policyName, roles) in AuthorizationPolicies.TenantRoleMatrix)
+    {
+        options.AddPolicy(policyName, policy => policy.RequireAuthenticatedUser()
+            .RequireClaim("organization_id")
+            .RequireRole(roles));
+    }
+
+    options.AddPolicy(AuthorizationPolicies.PlatformAdmin, policy => policy.RequireAuthenticatedUser()
+        .RequireRole(AuthorizationPolicies.PlatformAdminRoles));
 });
 
 builder.Services.AddCors(options =>

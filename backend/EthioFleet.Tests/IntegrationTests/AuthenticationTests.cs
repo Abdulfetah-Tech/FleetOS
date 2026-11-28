@@ -36,8 +36,7 @@ namespace EthioFleet.Tests.IntegrationTests;
 public sealed class AuthenticationTests : IAsyncLifetime
 {
     private const string SigningKey = "test-only-signing-key-for-ethiofleet-0000000000001";
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:16-alpine")
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")
         .WithDatabase("ethiofleet_auth_test")
         .WithUsername("ethiofleet_test")
         .WithPassword("local-test-only")
@@ -1073,7 +1072,8 @@ public sealed class AuthenticationTests : IAsyncLifetime
             organizationName = "Auth Integration Test"
         });
         Assert.Equal(HttpStatusCode.Accepted, registration.StatusCode);
-        Assert.Contains("Confirm your EthioFleet account", _emailSender.Messages.Single().Subject);
+        var confirmationEmail = Assert.Single(_emailSender.Messages, m => m.Subject.Contains("Confirm your EthioFleet account"));
+        Assert.Equal(2, _emailSender.Messages.Count);
         Assert.Equal(HttpStatusCode.Accepted, (await client.PostAsJsonAsync("/api/v1/auth/register", new
         {
             email,
@@ -1081,7 +1081,7 @@ public sealed class AuthenticationTests : IAsyncLifetime
             password = "ValidPass123!Secure",
             organizationName = "Different Organization"
         })).StatusCode);
-        Assert.Single(_emailSender.Messages);
+        Assert.Equal(2, _emailSender.Messages.Count);
 
         var unconfirmedLogin = await client.PostAsJsonAsync("/api/v1/auth/login",
             new { email, password = "ValidPass123!Secure" });
@@ -1090,7 +1090,7 @@ public sealed class AuthenticationTests : IAsyncLifetime
         var confirmation = await client.PostAsJsonAsync("/api/v1/auth/confirm-email", new
         {
             email,
-            token = GetEmailToken(_emailSender.Messages.Single())
+            token = GetEmailToken(confirmationEmail)
         });
         Assert.Equal(HttpStatusCode.NoContent, confirmation.StatusCode);
         var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password = "ValidPass123!Secure" });
@@ -1132,10 +1132,11 @@ public sealed class AuthenticationTests : IAsyncLifetime
             organizationName = "Password Reset Integration Test"
         });
         Assert.Equal(HttpStatusCode.Accepted, registration.StatusCode);
+        var confirmationEmail = Assert.Single(_emailSender.Messages, m => m.Subject.Contains("Confirm your EthioFleet account"));
         Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync("/api/v1/auth/confirm-email", new
         {
             email,
-            token = GetEmailToken(_emailSender.Messages.Single())
+            token = GetEmailToken(confirmationEmail)
         })).StatusCode);
 
         var beforeReset = await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password = "ValidPass123!Secure" });
@@ -1303,5 +1304,27 @@ public sealed class AuthenticationTests : IAsyncLifetime
         using var client = _factory!.CreateClient();
         var response = await client.PostAsJsonAsync("/api/v1/auth/logout", new { refreshToken = "invalid" });
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("OperationsManager", "/api/v1/vehicles", HttpStatusCode.OK)]
+    [InlineData("OperationsManager", "/api/v1/maintenance/records", HttpStatusCode.OK)]
+    [InlineData("Dispatcher", "/api/v1/trips", HttpStatusCode.OK)]
+    [InlineData("Dispatcher", "/api/v1/vehicles", HttpStatusCode.Forbidden)]
+    [InlineData("ReadOnlyAnalyst", "/api/v1/dashboard/fleet", HttpStatusCode.OK)]
+    [InlineData("ReadOnlyAnalyst", "/api/v1/maintenance/records", HttpStatusCode.Forbidden)]
+    [InlineData("Employee", "/api/v1/dashboard/fleet", HttpStatusCode.Forbidden)]
+    [InlineData("Driver", "/api/v1/trips", HttpStatusCode.Forbidden)]
+    [InlineData("Accountant", "/api/v1/reports/fleet?from=2026-01-01&to=2026-12-31", HttpStatusCode.OK)]
+    public async Task RoleMatrixEnforcesOperationBoundaries(string role, string path, HttpStatusCode expectedStatus)
+    {
+        var organizationId = Guid.NewGuid();
+        await SeedOrganizationAsync(organizationId);
+        using var client = _factory!.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", CreateTestToken(Guid.NewGuid(), organizationId, role));
+
+        var response = await client.GetAsync(path);
+        Assert.Equal(expectedStatus, response.StatusCode);
     }
 }

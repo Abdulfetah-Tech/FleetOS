@@ -1,0 +1,286 @@
+<main class="vehicle-main" [attr.aria-busy]="loading()">
+  <header class="page-header">
+    <div>
+      <h1>Maintenance</h1>
+      <p>Service history, labor &amp; parts costs in ETB, and preventive schedules</p>
+    </div>
+    @if (isCompanyOwner()) {
+      <div class="header-actions">
+        <button class="primary-button" type="button" [disabled]="loading()" (click)="beginCreateRecord()">
+          Log maintenance
+        </button>
+        <button class="secondary-button" type="button" [disabled]="loading()" (click)="beginCreateSchedule()">
+          New schedule
+        </button>
+      </div>
+    }
+  </header>
+
+  @if (noticeMessage()) {
+    <p class="success-message" role="status">{{ noticeMessage() }}</p>
+  }
+  @if (errorMessage()) {
+    <section class="load-error" role="alert">
+      <p>{{ errorMessage() }}</p>
+      <button type="button" (click)="activeTab() === 'records' ? loadRecords() : loadSchedules()" [disabled]="loading()">
+        Try again
+      </button>
+    </section>
+  }
+
+  <div class="tab-bar" role="tablist" aria-label="Maintenance views">
+    <button
+      type="button"
+      role="tab"
+      [attr.aria-selected]="activeTab() === 'records'"
+      (click)="switchTab('records')"
+    >
+      Records ({{ recordsPage()?.totalCount ?? 0 }})
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [attr.aria-selected]="activeTab() === 'schedules'"
+      (click)="switchTab('schedules')"
+    >
+      Schedules ({{ schedulesPage()?.totalCount ?? 0 }})
+    </button>
+  </div>
+
+  <section class="filter-bar">
+    <label>
+      <span>Filter by vehicle</span>
+      <select [ngModel]="filterVehicleId()" (ngModelChange)="onVehicleFilterChange($event)">
+        <option value="">All vehicles</option>
+        @for (vehicle of vehiclePage()?.items; track vehicle.id) {
+          <option [value]="vehicle.id">{{ vehicle.plateNumber }} — {{ vehicle.make }} {{ vehicle.model }}</option>
+        }
+      </select>
+    </label>
+    @if (activeTab() === 'schedules') {
+      <label class="checkbox-filter">
+        <input type="checkbox" [ngModel]="dueOnly()" (ngModelChange)="toggleDueOnly($event)">
+        <span>Due only</span>
+      </label>
+    }
+  </section>
+
+  @if (recordFormOpen()) {
+    <section class="vehicle-form-section" aria-labelledby="maintenance-record-form-heading">
+      <div class="form-heading">
+        <h2 id="maintenance-record-form-heading">Log maintenance record</h2>
+        <button class="text-button" type="button" [disabled]="saving()" (click)="closeForms()">Cancel</button>
+      </div>
+      @if (formError()) {
+        <p class="form-error" role="alert">{{ formError() }}</p>
+      }
+      <form (ngSubmit)="submitRecord()">
+        <div class="form-grid">
+          <label>
+            <span>Vehicle</span>
+            <select name="recordVehicleId" [(ngModel)]="recordForm.vehicleId" required>
+              <option value="">Select a vehicle</option>
+              @for (vehicle of vehiclePage()?.items; track vehicle.id) {
+                <option [value]="vehicle.id">{{ vehicle.plateNumber }} — {{ vehicle.make }} {{ vehicle.model }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Type</span>
+            <select name="recordType" [(ngModel)]="recordForm.type" required>
+              @for (item of maintenanceTypes; track item.value) {
+                <option [ngValue]="item.value">{{ item.label }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Performed on</span>
+            <input name="performedOn" type="date" [(ngModel)]="recordForm.performedOn" required>
+          </label>
+          <label>
+            <span>Odometer (km)</span>
+            <input name="odometer" type="number" min="0" step="0.1" [(ngModel)]="recordForm.odometer" required>
+          </label>
+          <label>
+            <span>Labor cost (ETB)</span>
+            <input name="laborCost" type="number" min="0" step="0.01" [(ngModel)]="recordForm.laborCost" required>
+          </label>
+          <label>
+            <span>Parts cost (ETB)</span>
+            <input name="partsCost" type="number" min="0" step="0.01" [(ngModel)]="recordForm.partsCost" required>
+          </label>
+          <label>
+            <span>Description</span>
+            <input name="description" type="text" [(ngModel)]="recordForm.description" required>
+          </label>
+          <label>
+            <span>Service provider</span>
+            <input name="serviceProvider" type="text" [(ngModel)]="recordForm.serviceProvider">
+          </label>
+          <label>
+            <span>Reference</span>
+            <input name="reference" type="text" [(ngModel)]="recordForm.reference">
+          </label>
+          <label>
+            <span>Notes</span>
+            <input name="notes" type="text" [(ngModel)]="recordForm.notes">
+          </label>
+        </div>
+        <button class="primary-button" type="submit" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save record' }}
+        </button>
+      </form>
+    </section>
+  }
+
+  @if (scheduleFormOpen()) {
+    <section class="vehicle-form-section" aria-labelledby="maintenance-schedule-form-heading">
+      <div class="form-heading">
+        <h2 id="maintenance-schedule-form-heading">Create maintenance schedule</h2>
+        <button class="text-button" type="button" [disabled]="saving()" (click)="closeForms()">Cancel</button>
+      </div>
+      @if (formError()) {
+        <p class="form-error" role="alert">{{ formError() }}</p>
+      }
+      <form (ngSubmit)="submitSchedule()">
+        <div class="form-grid">
+          <label>
+            <span>Vehicle</span>
+            <select name="scheduleVehicleId" [(ngModel)]="scheduleForm.vehicleId" required>
+              <option value="">Select a vehicle</option>
+              @for (vehicle of vehiclePage()?.items; track vehicle.id) {
+                <option [value]="vehicle.id">{{ vehicle.plateNumber }} — {{ vehicle.make }} {{ vehicle.model }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Schedule name</span>
+            <input name="scheduleName" type="text" [(ngModel)]="scheduleForm.name" required>
+          </label>
+          <label>
+            <span>Next due date</span>
+            <input name="nextDueDate" type="date" [(ngModel)]="scheduleForm.nextDueDate">
+          </label>
+          <label>
+            <span>Next due mileage (km)</span>
+            <input name="nextDueMileage" type="number" min="0" step="0.1" [(ngModel)]="scheduleForm.nextDueMileage">
+          </label>
+          <label>
+            <span>Interval (days)</span>
+            <input name="intervalDays" type="number" min="1" step="1" [(ngModel)]="scheduleForm.intervalDays">
+          </label>
+          <label>
+            <span>Interval (km)</span>
+            <input name="intervalMileage" type="number" min="1" step="1" [(ngModel)]="scheduleForm.intervalMileage">
+          </label>
+          <label>
+            <span>Description</span>
+            <input name="scheduleDescription" type="text" [(ngModel)]="scheduleForm.description">
+          </label>
+        </div>
+        <button class="primary-button" type="submit" [disabled]="saving()">
+          {{ saving() ? 'Saving…' : 'Save schedule' }}
+        </button>
+      </form>
+    </section>
+  }
+
+  @if (completingSchedule(); as schedule) {
+    <section class="vehicle-form-section" aria-labelledby="complete-schedule-heading">
+      <div class="form-heading">
+        <h2 id="complete-schedule-heading">Complete "{{ schedule.name }}" ({{ schedule.vehiclePlateNumber }})</h2>
+        <button class="text-button" type="button" [disabled]="saving()" (click)="closeForms()">Cancel</button>
+      </div>
+      @if (formError()) {
+        <p class="form-error" role="alert">{{ formError() }}</p>
+      }
+      <form (ngSubmit)="submitCompleteSchedule()">
+        <div class="form-grid">
+          <label>
+            <span>Completed on</span>
+            <input name="completedOn" type="date" [(ngModel)]="completeForm.completedOn" required>
+          </label>
+          <label>
+            <span>Completed at mileage (km)</span>
+            <input name="completedAtMileage" type="number" min="0" step="0.1" [(ngModel)]="completeForm.completedAtMileage" required>
+          </label>
+        </div>
+        <button class="primary-button" type="submit" [disabled]="saving()">
+          {{ saving() ? 'Completing…' : 'Confirm completion' }}
+        </button>
+      </form>
+    </section>
+  }
+
+  @if (activeTab() === 'records') {
+    @if (!loading() && records().length === 0) {
+      <p class="empty-state">No maintenance records found.</p>
+    } @else {
+      <table class="vehicle-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Vehicle</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Odometer</th>
+            <th>Total Cost</th>
+            <th>Provider</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (record of records(); track record.id) {
+            <tr>
+              <td>{{ record.performedOn }}</td>
+              <td>{{ record.vehiclePlateNumber }}</td>
+              <td>{{ maintenanceTypeLabel(record.type) }}</td>
+              <td>{{ record.description }}</td>
+              <td>{{ record.odometer }} km</td>
+              <td>{{ record.totalCost }} {{ record.currencyCode }}</td>
+              <td>{{ record.serviceProvider || '—' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  } @else {
+    @if (!loading() && schedules().length === 0) {
+      <p class="empty-state">No maintenance schedules found.</p>
+    } @else {
+      <table class="vehicle-table">
+        <thead>
+          <tr>
+            <th>Vehicle</th>
+            <th>Schedule</th>
+            <th>Next Due Date</th>
+            <th>Next Due Mileage</th>
+            <th>Status</th>
+            <th>Due</th>
+            @if (isCompanyOwner()) {
+              <th>Actions</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (schedule of schedules(); track schedule.id) {
+            <tr>
+              <td>{{ schedule.vehiclePlateNumber }}</td>
+              <td>{{ schedule.name }}</td>
+              <td>{{ schedule.nextDueDate || '—' }}</td>
+              <td>{{ schedule.nextDueMileage ?? '—' }}</td>
+              <td>{{ scheduleStatusLabel(schedule.status) }}</td>
+              <td>{{ schedule.isDue ? 'Due' : 'Scheduled' }}</td>
+              @if (isCompanyOwner()) {
+                <td>
+                  <button type="button" class="text-button" (click)="beginCompleteSchedule(schedule)">
+                    Complete
+                  </button>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  }
+</main>

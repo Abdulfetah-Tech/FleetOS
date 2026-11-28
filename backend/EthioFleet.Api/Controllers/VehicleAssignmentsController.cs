@@ -1,5 +1,6 @@
 using Asp.Versioning;
 using EthioFleet.Application.Assignments;
+using EthioFleet.Application.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,7 @@ namespace EthioFleet.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/vehicles/{vehicleId:guid}/assignment")]
-[Authorize(Policy = "FleetManager")]
+[Authorize(Policy = AuthorizationPolicies.Dispatcher)]
 public sealed class VehicleAssignmentsController(IVehicleAssignmentService assignmentService) : ControllerBase
 {
     [HttpGet]

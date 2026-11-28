@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using EthioFleet.Application.Authentication;
 using EthioFleet.Application.Trips;
 using EthioFleet.Domain.Trips;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,7 @@ namespace EthioFleet.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/trips")]
-[Authorize(Policy = "FleetManager")]
+[Authorize(Policy = AuthorizationPolicies.Dispatcher)]
 public sealed class TripsController(ITripService tripService) : ControllerBase
 {
     [HttpGet]

@@ -44,6 +44,8 @@ public sealed class AuthenticationService(
             return RegistrationResult.Success();
         }
 
+        EnsureEmailDeliveryIsConfigured();
+
         await IdentitySeeder.EnsureRoleAsync(roleManager, "CompanyAdministrator");
         var organization = new Organization(request.OrganizationName, CreateOrganizationCode(), email, string.Empty, string.Empty);
         var user = new AppIdentityUser
@@ -74,10 +76,23 @@ public sealed class AuthenticationService(
             return RegistrationResult.Failure("Could not assign the company administrator role.");
         }
 
+        try
+        {
+            var confirmationToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
+            await emailSender.SendAsync(new EmailMessage(
+                user.Email!,
+                "Confirm your EthioFleet account",
+                $"Welcome to EthioFleet! Use this token to confirm your email address:{Environment.NewLine}{confirmationToken}"), cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+
         await transaction.CommitAsync(cancellationToken);
 
-        // Send confirmation and welcome emails (non-blocking - log errors but don't fail registration)
-        await SendConfirmationAndWelcomeEmailsAsync(user, cancellationToken);
+        await SendWelcomeEmailBestEffortAsync(user, cancellationToken);
 
         return RegistrationResult.Success();
     }
@@ -365,26 +380,10 @@ public sealed class AuthenticationService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task SendConfirmationAndWelcomeEmailsAsync(AppIdentityUser user, CancellationToken cancellationToken)
+    private async Task SendWelcomeEmailBestEffortAsync(AppIdentityUser user, CancellationToken cancellationToken)
     {
         try
         {
-            // Check if email is configured
-            if (!emailSender.IsConfigured)
-            {
-                logger.LogWarning("Email delivery not configured - skipping confirmation and welcome emails for user {UserId}", user.Id);
-                return;
-            }
-
-            var confirmationToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
-
-            // Send confirmation email
-            await emailSender.SendAsync(new EmailMessage(
-                user.Email!,
-                "Confirm your EthioFleet account",
-                $"Welcome to EthioFleet! Use this token to confirm your email address:{Environment.NewLine}{confirmationToken}"), cancellationToken);
-
-            // Send welcome email
             await emailSender.SendAsync(new EmailMessage(
                 user.Email!,
                 "Welcome to EthioFleet",
@@ -396,8 +395,7 @@ public sealed class AuthenticationService(
         }
         catch (Exception ex)
         {
-            // Log but don't break registration - email failures should not prevent account creation
-            logger.LogError(ex, "Failed to send confirmation/welcome emails for user {UserId} ({Email}). Registration succeeded but emails were not delivered.", user.Id, user.Email);
+            logger.LogError(ex, "Failed to send welcome email for user {UserId} ({Email}). Registration succeeded.", user.Id, user.Email);
         }
     }
 

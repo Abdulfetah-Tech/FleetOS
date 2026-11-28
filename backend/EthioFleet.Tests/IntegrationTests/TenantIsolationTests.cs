@@ -13,8 +13,7 @@ namespace EthioFleet.Tests.IntegrationTests;
 
 public sealed class TenantIsolationTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:16-alpine")
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")
         .WithDatabase("ethiofleet_tenant_test")
         .WithUsername("ethiofleet_test")
         .WithPassword("local-test-only")

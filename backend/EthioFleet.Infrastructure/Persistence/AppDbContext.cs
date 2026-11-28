@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using EthioFleet.Application.Interfaces;
 using EthioFleet.Domain.Assignments;
+using EthioFleet.Domain.Audit;
 using EthioFleet.Domain.Common;
 using EthioFleet.Domain.Documents;
 using EthioFleet.Domain.Drivers;
@@ -56,6 +57,7 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<SavedFleetReportFilter> SavedFleetReportFilters { get; set; }
     public DbSet<VehicleDocument> VehicleDocuments { get; set; }
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public Guid? CurrentOrganizationId => _tenantContext.OrganizationId;
@@ -63,6 +65,18 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.ToTable("audit_logs");
+            entity.HasKey(log => log.Id);
+            entity.Property(log => log.Action).HasMaxLength(100).IsRequired();
+            entity.Property(log => log.EntityType).HasMaxLength(100).IsRequired();
+            entity.Property(log => log.EntityId).HasMaxLength(100).IsRequired();
+            entity.Property(log => log.IpAddress).HasMaxLength(64);
+            entity.HasIndex(log => new { log.OrganizationId, log.OccurredAt });
+            entity.HasIndex(log => new { log.OrganizationId, log.EntityType, log.EntityId });
+        });
 
         modelBuilder.Entity<RefreshToken>(entity =>
         {
@@ -359,7 +373,9 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
+        EnforceAuditLogImmutability();
         StampAuditFields();
+        RecordAuditLogs();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
@@ -367,13 +383,83 @@ public class AppDbContext : IdentityDbContext<AppIdentityUser, IdentityRole<Guid
         bool acceptAllChangesOnSuccess,
         CancellationToken cancellationToken = default)
     {
+        EnforceAuditLogImmutability();
         StampAuditFields();
+        RecordAuditLogs();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
     internal void StampAuditFields()
     {
         AuditFieldStamper.Apply(ChangeTracker, _clock, _currentUser, _tenantContext);
+    }
+
+    private void EnforceAuditLogImmutability()
+    {
+        var hasTamperedAuditLog = ChangeTracker.Entries<AuditLog>()
+            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
+
+        if (hasTamperedAuditLog)
+        {
+            throw new InvalidOperationException("Audit logs are immutable and cannot be modified or deleted.");
+        }
+    }
+
+    private void RecordAuditLogs()
+    {
+        var occurredAt = _clock.UtcNow;
+        var userId = _currentUser.UserId;
+        var pendingLogs = new List<AuditLog>();
+
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.Entity is AuditLog || entry.Entity is not ITenantOwned tenantOwned)
+            {
+                continue;
+            }
+
+            if (tenantOwned.OrganizationId == Guid.Empty)
+            {
+                continue;
+            }
+
+            string? actionSuffix = entry.State switch
+            {
+                EntityState.Added => "Created",
+                EntityState.Deleted => "Deleted",
+                EntityState.Modified when entry.Entity is ISoftDeletable { IsDeleted: true } => "Deleted",
+                EntityState.Modified => "Updated",
+                _ => null
+            };
+
+            if (actionSuffix is null)
+            {
+                continue;
+            }
+
+            var entityType = entry.Metadata.ClrType.Name;
+            var entityId = entry.Entity is BaseEntity baseEntity
+                ? baseEntity.Id.ToString()
+                : entry.Properties.FirstOrDefault(p => p.Metadata.IsPrimaryKey())?.CurrentValue?.ToString() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(entityId))
+            {
+                continue;
+            }
+
+            pendingLogs.Add(new AuditLog(
+                tenantOwned.OrganizationId,
+                userId,
+                $"{entityType}{actionSuffix}",
+                entityType,
+                entityId,
+                occurredAt));
+        }
+
+        if (pendingLogs.Count > 0)
+        {
+            AuditLogs.AddRange(pendingLogs);
+        }
     }
 
     private static void ConfigureUtcColumns(IMutableEntityType entityType)
